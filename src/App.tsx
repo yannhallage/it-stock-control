@@ -8,6 +8,7 @@ import { AssignmentsPage } from './pages/Assignments'
 import { IncidentsPage } from './pages/Incidents'
 import { WorkshopPage } from './pages/Workshop'
 import { AssetDetailsPage } from './pages/AssetDetails'
+import { SuppliersPage } from './pages/Suppliers'
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -33,6 +34,7 @@ export default function App() {
               <Route path="/affectations" element={<AssignmentsPage />} />
               <Route path="/pannes" element={<IncidentsPage />} />
               <Route path="/atelier" element={<WorkshopPage />} />
+              <Route path="/fournisseurs" element={<SuppliersPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ProtectedLayout>

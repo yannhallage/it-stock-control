@@ -1,5 +1,6 @@
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'react-toastify'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/format'
 import type { Asset, Incident, Repair } from '../types'
@@ -40,7 +41,11 @@ export function WorkshopPage() {
         setIncidents(i)
         setRepairs(r)
       })
-      .catch((e) => setError(String(e?.message ?? e)))
+      .catch((e) => {
+        const msg = String(e?.message ?? e)
+        setError(msg)
+        toast.error(msg || 'Erreur lors du chargement.')
+      })
       .finally(() => setLoading(false))
   }
 
@@ -51,7 +56,10 @@ export function WorkshopPage() {
   async function startRepair(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    if (!incidentId) return
+    if (!incidentId) {
+      toast.warning('Veuillez sélectionner un incident.')
+      return
+    }
     try {
       await api<Repair>(`/api/incidents/${incidentId}/repairs`, {
         method: 'POST',
@@ -61,13 +69,16 @@ export function WorkshopPage() {
           workshopIn,
         }),
       })
+      toast.success('Réparation démarrée.')
       setIncidentId('')
       setAction('')
       setCost('0')
       setWorkshopIn(new Date().toISOString().slice(0, 10))
       load()
     } catch (err: any) {
-      setError(String(err?.message ?? err))
+      const msg = String(err?.message ?? err)
+      setError(msg)
+      toast.error(msg || 'Erreur lors du démarrage de la réparation.')
     }
   }
 
@@ -81,9 +92,12 @@ export function WorkshopPage() {
           outcome,
         }),
       })
+      toast.success(outcome === 'EN_SERVICE' ? 'Matériel remis en service.' : 'Matériel marqué hors service.')
       load()
     } catch (err: any) {
-      setError(String(err?.message ?? err))
+      const msg = String(err?.message ?? err)
+      setError(msg)
+      toast.error(msg || 'Erreur lors de la clôture de la réparation.')
     }
   }
 
@@ -108,7 +122,6 @@ export function WorkshopPage() {
             label="Incident"
             value={incidentId}
             onChange={(e) => setIncidentId(e.target.value ? Number(e.target.value) : '')}
-            required
           >
             <option value="">Sélectionner…</option>
             {incidentChoices.map((i) => (
@@ -122,13 +135,11 @@ export function WorkshopPage() {
             type="date"
             value={workshopIn}
             onChange={(e) => setWorkshopIn(e.target.value)}
-            required
           />
           <Textarea
             label="Action menée"
             value={action}
             onChange={(e) => setAction(e.target.value)}
-            required
             rows={3}
             className="md:col-span-2"
           />
@@ -138,10 +149,9 @@ export function WorkshopPage() {
             step="0.01"
             value={cost}
             onChange={(e) => setCost(e.target.value)}
-            required
           />
           <div className="md:col-span-2">
-            <Button type="submit" variant="primary" disabled={loading}>
+            <Button type="submit" className="cursor-pointer" variant="primary" disabled={loading}>
               Passer en réparation
             </Button>
           </div>
@@ -166,10 +176,10 @@ export function WorkshopPage() {
               <td className="px-4 py-3 text-gray-600">{r.cost.toFixed(2)}</td>
               <td className="px-4 py-3">
                 <div className="flex gap-2">
-                  <Button onClick={() => finishRepair(r.id, 'EN_SERVICE')} variant="primary">
+                  <Button className="cursor-pointer" onClick={() => finishRepair(r.id, 'EN_SERVICE')} variant="primary">
                     En service
                   </Button>
-                  <Button onClick={() => finishRepair(r.id, 'HORS_SERVICE')} variant="danger">
+                  <Button className="cursor-pointer" onClick={() => finishRepair(r.id, 'HORS_SERVICE')} variant="danger">
                     Hors service
                   </Button>
                 </div>

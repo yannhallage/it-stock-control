@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { api } from '../lib/api'
 import { assetStatusLabel, formatDate } from '../lib/format'
 import type { Asset, Assignment, HistoryEvent, Incident, Repair } from '../types'
@@ -23,7 +24,11 @@ export function AssetDetailsPage() {
     setError(null)
     api<AssetDetails>(`/api/assets/${id}`)
       .then(setData)
-      .catch((e) => setError(String(e?.message ?? e)))
+      .catch((e) => {
+        const msg = String(e?.message ?? e)
+        setError(msg)
+        toast.error(msg || 'Erreur lors du chargement.')
+      })
   }
 
   useEffect(() => {

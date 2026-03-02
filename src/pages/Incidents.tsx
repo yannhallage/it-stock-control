@@ -1,5 +1,6 @@
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'react-toastify'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/format'
 import type { Asset, Incident } from '../types'
@@ -35,7 +36,11 @@ export function IncidentsPage() {
         setAssets(a)
         setItems(i)
       })
-      .catch((e) => setError(String(e?.message ?? e)))
+      .catch((e) => {
+        const msg = String(e?.message ?? e)
+        setError(msg)
+        toast.error(msg || 'Erreur lors du chargement.')
+      })
       .finally(() => setLoading(false))
   }
 
@@ -46,19 +51,25 @@ export function IncidentsPage() {
   async function createIncident(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    if (!assetId) return
+    if (!assetId) {
+      toast.warning('Veuillez sélectionner un matériel.')
+      return
+    }
     try {
       await api<Incident>(`/api/assets/${assetId}/incidents`, {
         method: 'POST',
         body: JSON.stringify({ department, reportedAt, description }),
       })
+      toast.success('Panne enregistrée avec succès.')
       setAssetId('')
       setDepartment('')
       setReportedAt(new Date().toISOString().slice(0, 10))
       setDescription('')
       load()
     } catch (err: any) {
-      setError(String(err?.message ?? err))
+      const msg = String(err?.message ?? err)
+      setError(msg)
+      toast.error(msg || 'Erreur lors de l\'enregistrement de la panne.')
     }
   }
 
@@ -66,7 +77,7 @@ export function IncidentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <PageTitle>Gestion des Pannes</PageTitle>
-        <Button onClick={load} disabled={loading}>
+        <Button onClick={load} className="cursor-pointer" disabled={loading}>
           Actualiser
         </Button>
       </div>
@@ -83,7 +94,6 @@ export function IncidentsPage() {
             label="Matériel"
             value={assetId}
             onChange={(e) => setAssetId(e.target.value ? Number(e.target.value) : '')}
-            required
           >
             <option value="">Sélectionner…</option>
             {assets.map((a) => (
@@ -96,14 +106,12 @@ export function IncidentsPage() {
             label="Direction concernée"
             value={department}
             onChange={(e) => setDepartment(e.target.value)}
-            required
           />
           <Input
             label="Date de signalement"
             type="date"
             value={reportedAt}
             onChange={(e) => setReportedAt(e.target.value)}
-            required
           />
           <div />
           <div className="md:col-span-2">
@@ -111,12 +119,11 @@ export function IncidentsPage() {
               label="Description du problème"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              required
               rows={4}
             />
           </div>
           <div className="md:col-span-2">
-            <Button type="submit" variant="primary" disabled={loading}>
+            <Button type="submit" className="cursor-pointer" variant="primary" disabled={loading}>
               Enregistrer la panne
             </Button>
           </div>

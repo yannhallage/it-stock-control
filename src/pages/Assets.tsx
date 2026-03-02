@@ -1,5 +1,6 @@
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'react-toastify'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/format'
 import type { Asset, AssetStatus } from '../types'
@@ -26,6 +27,13 @@ const statusOptions: Array<{ value: AssetStatus | ''; label: string }> = [
   { value: 'HORS_SERVICE', label: 'Hors Service' },
 ]
 
+function generateInventoryNumber(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let s = 'INV-'
+  for (let i = 0; i < 8; i++) s += chars[Math.floor(Math.random() * chars.length)]
+  return s
+}
+
 export function AssetsPage() {
   const [items, setItems] = useState<Asset[]>([])
   const [loading, setLoading] = useState(false)
@@ -35,14 +43,14 @@ export function AssetsPage() {
   const [type, setType] = useState('')
   const [status, setStatus] = useState<AssetStatus | ''>('')
 
-  const [form, setForm] = useState<AssetCreateInput>({
-    inventoryNumber: '',
+  const [form, setForm] = useState<AssetCreateInput>(() => ({
+    inventoryNumber: generateInventoryNumber(),
     type: 'PC',
     brand: '',
     model: '',
     entryDate: new Date().toISOString().slice(0, 10),
     supplier: '',
-  })
+  }))
 
   const [assetToDelete, setAssetToDelete] = useState<number | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -61,7 +69,11 @@ export function AssetsPage() {
     if (status) params.set('status', status)
     api<Asset[]>(`/api/assets?${params.toString()}`)
       .then(setItems)
-      .catch((e) => setError(String(e?.message ?? e)))
+      .catch((e) => {
+        const msg = String(e?.message ?? e)
+        setError(msg)
+        toast.error(msg || 'Erreur lors du chargement.')
+      })
       .finally(() => setLoading(false))
   }
 
@@ -78,6 +90,7 @@ export function AssetsPage() {
         method: 'POST',
         body: JSON.stringify(form),
       })
+      toast.success('Matériel ajouté avec succès.')
       setForm((f) => ({
         ...f,
         inventoryNumber: '',
@@ -87,7 +100,9 @@ export function AssetsPage() {
       }))
       load()
     } catch (err: any) {
-      setError(String(err?.message ?? err))
+      const msg = String(err?.message ?? err)
+      setError(msg)
+      toast.error(msg || 'Erreur lors de l\'ajout du matériel.')
     }
   }
 
@@ -97,10 +112,13 @@ export function AssetsPage() {
     setDeleteLoading(true)
     try {
       await api(`/api/assets/${assetToDelete}`, { method: 'DELETE' })
+      toast.success('Matériel supprimé.')
       setAssetToDelete(null)
       load()
     } catch (err: unknown) {
-      setError(String((err as Error)?.message ?? err))
+      const msg = String((err as Error)?.message ?? err)
+      setError(msg)
+      toast.error(msg || 'Erreur lors de la suppression.')
     } finally {
       setDeleteLoading(false)
     }
@@ -127,7 +145,7 @@ export function AssetsPage() {
       </ConfirmModal>
       <div className="flex items-center justify-between">
         <PageTitle>Gestion de Stock</PageTitle>
-        <Button onClick={load} disabled={loading}>
+        <Button onClick={load} disabled={loading} className="cursor-pointer">
           Actualiser
         </Button>
       </div>
@@ -141,44 +159,39 @@ export function AssetsPage() {
       <Card title="Ajouter un matériel">
         <form className="grid grid-cols-1 gap-4 md:grid-cols-3" onSubmit={onCreate}>
           <Input
-            label="Numéro d'inventaire (unique)"
+            label="Numéro d'inventaire (généré)"
             value={form.inventoryNumber}
-            onChange={(e) => setForm({ ...form, inventoryNumber: e.target.value })}
-            required
+            readOnly
+            className="bg-gray-50 font-mono"
           />
           <Input
             label="Type (PC, Imprimante, etc.)"
             value={form.type}
             onChange={(e) => setForm({ ...form, type: e.target.value })}
-            required
           />
           <Input
             label="Marque"
             value={form.brand}
             onChange={(e) => setForm({ ...form, brand: e.target.value })}
-            required
           />
           <Input
             label="Modèle"
             value={form.model}
             onChange={(e) => setForm({ ...form, model: e.target.value })}
-            required
           />
           <Input
             label="Date d'entrée"
             type="date"
             value={form.entryDate}
             onChange={(e) => setForm({ ...form, entryDate: e.target.value })}
-            required
           />
           <Input
             label="Fournisseur"
             value={form.supplier}
             onChange={(e) => setForm({ ...form, supplier: e.target.value })}
-            required
           />
           <div className="md:col-span-3">
-            <Button type="submit" variant="primary">
+            <Button type="submit" className="cursor-pointer" variant="primary">
               Ajouter
             </Button>
           </div>
@@ -213,7 +226,7 @@ export function AssetsPage() {
             ))}
           </Select>
           <div className="flex items-end gap-2">
-            <Button onClick={load} disabled={loading}>
+            <Button onClick={load} className="cursor-pointer" disabled={loading}>
               Filtrer
             </Button>
             <Button

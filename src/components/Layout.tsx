@@ -1,6 +1,75 @@
 import type React from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { clearSession, getSession } from '../lib/auth'
+
+function Tooltip({
+  children,
+  text,
+  placement = 'right',
+}: {
+  children: React.ReactNode
+  text: string
+  placement?: 'right' | 'bottom' | 'left'
+}) {
+  const [visible, setVisible] = useState(false)
+  const [coords, setCoords] = useState({ top: 0, left: 0 })
+  const triggerRef = useRef<HTMLSpanElement>(null)
+
+  const updatePosition = useCallback(() => {
+    const el = triggerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const gap = 8
+    if (placement === 'right') {
+      setCoords({ top: rect.top + rect.height / 2, left: rect.right + gap })
+    } else if (placement === 'left') {
+      setCoords({ top: rect.top + rect.height / 2, left: rect.left - gap })
+    } else {
+      setCoords({ top: rect.bottom + gap, left: rect.left + rect.width / 2 })
+    }
+  }, [placement])
+
+  const show = useCallback(() => {
+    updatePosition()
+    setVisible(true)
+  }, [updatePosition])
+
+  const hide = useCallback(() => {
+    setVisible(false)
+  }, [])
+
+  const tooltipContent = visible && (
+    <span
+      className="fixed z-[100] whitespace-nowrap rounded-md bg-[var(--color-primary)] px-2.5 py-1.5 text-xs font-medium text-white shadow-lg"
+      style={
+        placement === 'bottom'
+          ? { top: coords.top, left: coords.left, transform: 'translate(-50%, 0)' }
+          : placement === 'left'
+            ? { top: coords.top, left: coords.left, transform: 'translate(-100%, -50%)' }
+            : { top: coords.top, left: coords.left, transform: 'translateY(-50%)' }
+      }
+      role="tooltip"
+    >
+      {text}
+    </span>
+  )
+
+  return (
+    <>
+      <span
+        ref={triggerRef}
+        className="inline-flex"
+        onMouseEnter={show}
+        onMouseLeave={hide}
+      >
+        {children}
+      </span>
+      {tooltipContent && createPortal(tooltipContent, document.body)}
+    </>
+  )
+}
 
 const navItems: Array<{ to: string; label: string; icon: React.ReactNode }> = [
   {
@@ -49,6 +118,15 @@ const navItems: Array<{ to: string; label: string; icon: React.ReactNode }> = [
       </svg>
     ),
   },
+  {
+    to: '/fournisseurs',
+    label: 'Fournisseurs',
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>
+    ),
+  },
 ]
 
 function SidebarNavItem({
@@ -63,7 +141,6 @@ function SidebarNavItem({
   return (
     <NavLink
       to={to}
-      title={label}
       className={({ isActive }) =>
         [
           'flex items-center justify-center rounded-lg p-3 transition-colors',
@@ -74,7 +151,7 @@ function SidebarNavItem({
       }
       end={to === '/'}
     >
-      {icon}
+      <Tooltip text={label}>{icon}</Tooltip>
     </NavLink>
   )
 }
@@ -136,11 +213,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
               type="button"
               onClick={handleLogout}
               className="rounded p-2 cursor-pointer text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-              title="Déconnexion"
             >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
+              <Tooltip text="Déconnexion">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </Tooltip>
             </button>
           </div>
         </div>
@@ -159,11 +237,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                title="Options"
               >
-                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
-                </svg>
+                <Tooltip text="Options" placement="bottom">
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                  </svg>
+                </Tooltip>
               </button>
             </div>
           </div>
