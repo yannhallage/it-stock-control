@@ -17,11 +17,13 @@ type AssetDetails = Asset & {
 export function AssetDetailsPage() {
   const { id } = useParams()
   const [data, setData] = useState<AssetDetails | null>(null)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   function load() {
     if (!id) return
     setError(null)
+    setLoading(true)
     api<AssetDetails>(`/api/assets/${id}`)
       .then(setData)
       .catch((e) => {
@@ -29,6 +31,7 @@ export function AssetDetailsPage() {
         setError(msg)
         toast.error(msg || 'Erreur lors du chargement.')
       })
+      .finally(() => setLoading(false))
   }
 
   useEffect(() => {
@@ -47,7 +50,13 @@ export function AssetDetailsPage() {
     )
   }
 
-  if (!data) return <div className="text-sm text-slate-600">Chargement…</div>
+  if (!data && !error) {
+    return (
+      <div className="py-12 text-center text-gray-500">
+        Chargement…
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -62,7 +71,9 @@ export function AssetDetailsPage() {
         </div>
         <div className="flex items-center gap-3">
           <StatusBadge status={data.status} />
-          <Button onClick={load}>Actualiser</Button>
+          <Button onClick={load} disabled={loading} className="flex items-center gap-2">
+            Actualiser
+          </Button>
         </div>
       </div>
 

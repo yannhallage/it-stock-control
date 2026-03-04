@@ -6,6 +6,7 @@ export type ListAssetsParams = {
   q?: string
   type?: string
   status?: AssetStatus | ''
+  with?: string
 }
 
 export type AssetCreatePayload = {
@@ -22,6 +23,7 @@ export function listAssetsService(params: ListAssetsParams = {}): Promise<Asset[
   if (params.q) searchParams.set('q', params.q)
   if (params.type) searchParams.set('type', params.type)
   if (params.status) searchParams.set('status', params.status)
+  if (params.with) searchParams.set('with', params.with)
 
   const query = searchParams.toString()
   const path = query ? `${ENDPOINTS.assets.base}?${query}` : ENDPOINTS.assets.base

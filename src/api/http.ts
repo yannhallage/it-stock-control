@@ -1,4 +1,5 @@
 import { buildUrl } from './endpoints'
+import { getSession } from '../lib/auth'
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
@@ -22,9 +23,12 @@ type RequestOptions = {
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, headers = {} } = options
 
+  const session = getSession()
   const finalHeaders: HeadersInit = {
     'Content-Type': 'application/json',
     ...headers,
+    // Routes protégées : envoi du JWT dans l'en-tête Authorization
+    ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
   }
 
   const res = await fetch(buildUrl(path), {
@@ -59,6 +63,10 @@ export function post<TRequest, TResponse = unknown>(path: string, body: TRequest
 
 export function put<TRequest, TResponse = unknown>(path: string, body: TRequest, headers?: Record<string, string>) {
   return request<TResponse>(path, { method: 'PUT', body, headers })
+}
+
+export function patch<TRequest, TResponse = unknown>(path: string, body: TRequest, headers?: Record<string, string>) {
+  return request<TResponse>(path, { method: 'PATCH', body, headers })
 }
 
 export function del<T = unknown>(path: string, headers?: Record<string, string>) {

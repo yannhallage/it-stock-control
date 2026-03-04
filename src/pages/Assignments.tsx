@@ -1,23 +1,28 @@
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
-import { api } from '../lib/api'
+import { useAssets } from '../api/hooks/useAssets'
+import { useAssignments } from '../api/hooks/useAssignments'
 import { formatDate } from '../lib/format'
 import type { Asset, AssetStatus, Assignment } from '../types'
 import { StatusBadge } from '../components/Badge'
 import { Button, Card, Input, PageTitle, Select, Table } from '../components/Ui'
 
-type AssetRow = Asset & { activeAssignment: Assignment | null }
+type AssetRow = Asset & { activeAssignment?: Assignment | null }
 
 export function AssignmentsPage() {
   const [items, setItems] = useState<AssetRow[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
 
   const [assetId, setAssetId] = useState<number | ''>('')
   const [department, setDepartment] = useState('')
   const [user, setUser] = useState('')
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
+
+  const { fetchAssets, loading: assetsLoading } = useAssets()
+  const { createAssignmentForAsset, endAssignment, loading: assignmentsLoading, error: apiError } = useAssignments()
+
+  const loading = assetsLoading || assignmentsLoading
 
   const assignable = useMemo(() => {
     const blocked: AssetStatus[] = ['EN_PANNE', 'EN_REPARATION', 'HORS_SERVICE']
@@ -25,20 +30,19 @@ export function AssignmentsPage() {
   }, [items])
 
   function load() {
-    setLoading(true)
     setError(null)
-    api<AssetRow[]>('/api/assets?with=activeAssignment')
-      .then(setItems)
+    fetchAssets({ with: 'activeAssignment' })
+      .then((data) => setItems((data as AssetRow[]) ?? []))
       .catch((e) => {
         const msg = String(e?.message ?? e)
         setError(msg)
         toast.error(msg || 'Erreur lors du chargement.')
       })
-      .finally(() => setLoading(false))
   }
 
   useEffect(() => {
     load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function createAssignment(e: React.FormEvent) {
@@ -49,31 +53,28 @@ export function AssignmentsPage() {
       return
     }
     try {
-      await api<Assignment>(`/api/assets/${assetId}/assignments`, {
-        method: 'POST',
-        body: JSON.stringify({ department, user, startDate }),
-      })
+      await createAssignmentForAsset(Number(assetId), { department, user, startDate })
       toast.success('Affectation créée avec succès.')
       setAssetId('')
       setDepartment('')
       setUser('')
       setStartDate(new Date().toISOString().slice(0, 10))
       load()
-    } catch (err: any) {
-      const msg = String(err?.message ?? err)
+    } catch (err: unknown) {
+      const msg = String(err instanceof Error ? err.message : err)
       setError(msg)
-      toast.error(msg || 'Erreur lors de l\'affectation.')
+      toast.error(msg || "Erreur lors de l'affectation.")
     }
   }
 
-  async function endAssignment(id: number) {
+  async function handleEndAssignment(id: number) {
     setError(null)
     try {
-      await api<{ ok: true }>(`/api/assignments/${id}/end`, { method: 'POST' })
+      await endAssignment(id)
       toast.success('Affectation clôturée.')
       load()
-    } catch (err: any) {
-      const msg = String(err?.message ?? err)
+    } catch (err: unknown) {
+      const msg = String(err instanceof Error ? err.message : err)
       setError(msg)
       toast.error(msg || 'Erreur lors de la clôture.')
     }
@@ -83,14 +84,14 @@ export function AssignmentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <PageTitle>Affectations</PageTitle>
-        <Button onClick={load} className="cursor-pointer" disabled={loading}>
+        <Button onClick={load} className="cursor-pointer flex items-center gap-2" disabled={loading}>
           Actualiser
         </Button>
       </div>
 
-      {error ? (
+      {error ?? apiError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          {error}
+          {error ?? apiError}
         </div>
       ) : null}
 
@@ -125,13 +126,13 @@ export function AssignmentsPage() {
             onChange={(e) => setStartDate(e.target.value)}
           />
           <div className="md:col-span-4">
-            <Button type="submit" className="cursor-pointer" variant="primary" disabled={loading}>
+            <Button type="submit" className="cursor-pointer flex items-center gap-2" variant="primary" disabled={loading}>
               Affecter / transférer
             </Button>
           </div>
         </form>
         <div className="mt-3 text-xs text-slate-600">
-          Une nouvelle affectation clôt automatiquement l’affectation active précédente (si existante).
+          Une nouvelle affectation clôt automatiquement l'affectation active précédente (si existante).
         </div>
       </Card>
 
@@ -161,11 +162,12 @@ export function AssignmentsPage() {
                 </td>
                 <td className="border-b border-slate-100 px-3 py-2">
                   <Button
-                    onClick={() => endAssignment(a.activeAssignment!.id)}
+                    onClick={() => a.activeAssignment && handleEndAssignment(a.activeAssignment.id)}
                     variant="default"
                     className="cursor-pointer"
+                    disabled={loading}
                   >
-                    Fin d’affectation
+                    Fin d'affectation
                   </Button>
                 </td>
               </tr>
@@ -182,4 +184,3 @@ export function AssignmentsPage() {
     </div>
   )
 }
-

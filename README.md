@@ -277,7 +277,7 @@ model Assignment {
   assetId    Int
   asset      Asset    @relation(fields: [assetId], references: [id])
   department String
-  user       String
+  user       Json
   startDate  DateTime
   endDate    DateTime?
   createdAt  DateTime @default(now())

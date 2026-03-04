@@ -1,19 +1,19 @@
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
-import { api } from '../lib/api'
+import { useAssets } from '../api/hooks/useAssets'
+import { useIncidents } from '../api/hooks/useIncidents'
+import { useWorkshop } from '../api/hooks/useWorkshop'
+import type { RepairWithRelations } from '../api/services/workshop.service'
 import { formatDate } from '../lib/format'
-import type { Asset, Incident, Repair } from '../types'
+import type { Asset, Incident } from '../types'
 import { StatusBadge } from '../components/Badge'
 import { Button, Card, Input, PageTitle, Select, Table, Textarea } from '../components/Ui'
 
-type IncidentRow = Incident & { asset: Asset }
-type RepairRow = Repair & { incident: Incident & { asset: Asset } }
-
 export function WorkshopPage() {
-  const [incidents, setIncidents] = useState<IncidentRow[]>([])
-  const [repairs, setRepairs] = useState<RepairRow[]>([])
-  const [loading, setLoading] = useState(false)
+  const [assets, setAssets] = useState<Asset[]>([])
+  const [incidents, setIncidents] = useState<Incident[]>([])
+  const [repairs, setRepairs] = useState<RepairWithRelations[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const [incidentId, setIncidentId] = useState<number | ''>('')
@@ -21,39 +21,48 @@ export function WorkshopPage() {
   const [cost, setCost] = useState('0')
   const [workshopIn, setWorkshopIn] = useState(new Date().toISOString().slice(0, 10))
 
+  const { fetchAssets, loading: assetsLoading } = useAssets()
+  const { fetchIncidents, loading: incidentsLoading } = useIncidents()
+  const { fetchRepairs, startRepair, closeRepair, loading: workshopLoading, error: apiError } = useWorkshop()
+
+  const loading = assetsLoading || incidentsLoading || workshopLoading
+
+  const assetsById = useMemo(() => {
+    const m = new Map<number, Asset>()
+    for (const a of assets) m.set(a.id, a)
+    return m
+  }, [assets])
+
   const incidentChoices = useMemo(
-    () =>
-      incidents.filter((i) => {
-        // démarre une réparation uniquement sur incident ouvert
-        return i.status === 'OUVERT'
-      }),
+    () => incidents.filter((i) => i.status === 'OUVERT'),
     [incidents],
   )
 
   function load() {
-    setLoading(true)
     setError(null)
     Promise.all([
-      api<IncidentRow[]>('/api/incidents?status=OUVERT&with=asset'),
-      api<RepairRow[]>('/api/repairs?status=EN_COURS&with=incident'),
+      fetchAssets(),
+      fetchIncidents({ status: 'OUVERT' }),
+      fetchRepairs({ status: 'EN_COURS' }),
     ])
-      .then(([i, r]) => {
-        setIncidents(i)
-        setRepairs(r)
+      .then(([a, i, r]) => {
+        setAssets(a ?? [])
+        setIncidents(i ?? [])
+        setRepairs(r ?? [])
       })
       .catch((e) => {
         const msg = String(e?.message ?? e)
         setError(msg)
         toast.error(msg || 'Erreur lors du chargement.')
       })
-      .finally(() => setLoading(false))
   }
 
   useEffect(() => {
     load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function startRepair(e: React.FormEvent) {
+  async function handleStartRepair(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     if (!incidentId) {
@@ -61,13 +70,11 @@ export function WorkshopPage() {
       return
     }
     try {
-      await api<Repair>(`/api/incidents/${incidentId}/repairs`, {
-        method: 'POST',
-        body: JSON.stringify({
-          action,
-          cost: Number(cost || 0),
-          workshopIn,
-        }),
+      await startRepair({
+        incidentId: Number(incidentId),
+        workshopEntryDate: workshopIn,
+        action: action.trim() || undefined,
+        cost: cost ? Number(cost) : undefined,
       })
       toast.success('Réparation démarrée.')
       setIncidentId('')
@@ -75,27 +82,21 @@ export function WorkshopPage() {
       setCost('0')
       setWorkshopIn(new Date().toISOString().slice(0, 10))
       load()
-    } catch (err: any) {
-      const msg = String(err?.message ?? err)
+    } catch (err: unknown) {
+      const msg = String(err instanceof Error ? err.message : err)
       setError(msg)
       toast.error(msg || 'Erreur lors du démarrage de la réparation.')
     }
   }
 
-  async function finishRepair(repairId: number, outcome: 'EN_SERVICE' | 'HORS_SERVICE') {
+  async function handleCloseRepair(repairId: number, outcome: 'EN_SERVICE' | 'HORS_SERVICE') {
     setError(null)
     try {
-      await api<Repair>(`/api/repairs/${repairId}/finish`, {
-        method: 'POST',
-        body: JSON.stringify({
-          workshopOut: new Date().toISOString().slice(0, 10),
-          outcome,
-        }),
-      })
+      await closeRepair(repairId, { outcome })
       toast.success(outcome === 'EN_SERVICE' ? 'Matériel remis en service.' : 'Matériel marqué hors service.')
       load()
-    } catch (err: any) {
-      const msg = String(err?.message ?? err)
+    } catch (err: unknown) {
+      const msg = String(err instanceof Error ? err.message : err)
       setError(msg)
       toast.error(msg || 'Erreur lors de la clôture de la réparation.')
     }
@@ -105,19 +106,19 @@ export function WorkshopPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <PageTitle>Suivi Atelier</PageTitle>
-        <Button onClick={load} disabled={loading}>
+        <Button onClick={load} disabled={loading} className="flex items-center gap-2 cursor-pointer">
           Actualiser
         </Button>
       </div>
 
-      {error ? (
+      {error ?? apiError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          {error}
+          {error ?? apiError}
         </div>
       ) : null}
 
       <Card title="Démarrer une réparation (En Panne → En Réparation)">
-        <form className="grid grid-cols-1 gap-4 md:grid-cols-2" onSubmit={startRepair}>
+        <form className="grid grid-cols-1 gap-4 md:grid-cols-2" onSubmit={handleStartRepair}>
           <Select
             label="Incident"
             value={incidentId}
@@ -126,7 +127,7 @@ export function WorkshopPage() {
             <option value="">Sélectionner…</option>
             {incidentChoices.map((i) => (
               <option key={i.id} value={i.id}>
-                #{i.id} — {i.asset.inventoryNumber} — {i.department}
+                #{i.id} — {assetsById.get(i.assetId)?.inventoryNumber ?? `#${i.assetId}`} — {i.department}
               </option>
             ))}
           </Select>
@@ -151,7 +152,7 @@ export function WorkshopPage() {
             onChange={(e) => setCost(e.target.value)}
           />
           <div className="md:col-span-2">
-            <Button type="submit" className="cursor-pointer" variant="primary" disabled={loading}>
+            <Button type="submit" className="cursor-pointer flex items-center gap-2" variant="primary" disabled={loading}>
               Passer en réparation
             </Button>
           </div>
@@ -160,32 +161,46 @@ export function WorkshopPage() {
 
       <Card title="Réparations en cours (alertes)">
         <Table columns={['Matériel', 'État', 'Incident', 'Entrée atelier', 'Action', 'Coût', 'Clôture']}>
-          {repairs.map((r) => (
-            <tr key={r.id} className="hover:bg-gray-50">
-              <td className="px-4 py-3 font-medium text-gray-900">
-                {r.incident.asset.inventoryNumber} — {r.incident.asset.brand} {r.incident.asset.model}
-              </td>
-              <td className="px-4 py-3">
-                <StatusBadge status={r.incident.asset.status} />
-              </td>
-              <td className="px-4 py-3 text-gray-600">
-                #{r.incidentId} — {r.incident.department}
-              </td>
-              <td className="px-4 py-3 text-gray-600">{formatDate(r.workshopIn)}</td>
-              <td className="px-4 py-3 text-gray-600">{r.action}</td>
-              <td className="px-4 py-3 text-gray-600">{r.cost.toFixed(2)}</td>
-              <td className="px-4 py-3">
-                <div className="flex gap-2">
-                  <Button className="cursor-pointer" onClick={() => finishRepair(r.id, 'EN_SERVICE')} variant="primary">
-                    En service
-                  </Button>
-                  <Button className="cursor-pointer" onClick={() => finishRepair(r.id, 'HORS_SERVICE')} variant="danger">
-                    Hors service
-                  </Button>
-                </div>
-              </td>
-            </tr>
-          ))}
+          {repairs.map((r) => {
+            const incident = r.incident
+            const asset = r.incident?.asset ?? (r.incident ? assetsById.get(r.incident.assetId) : undefined)
+            return (
+              <tr key={r.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 font-medium text-gray-900">
+                  {asset ? `${asset.inventoryNumber} — ${asset.brand} ${asset.model}` : `#${r.incidentId}`}
+                </td>
+                <td className="px-4 py-3">
+                  {asset ? <StatusBadge status={asset.status} /> : '—'}
+                </td>
+                <td className="px-4 py-3 text-gray-600">
+                  #{r.incidentId} — {incident?.department ?? '—'}
+                </td>
+                <td className="px-4 py-3 text-gray-600">{formatDate(r.workshopIn)}</td>
+                <td className="px-4 py-3 text-gray-600">{r.action}</td>
+                <td className="px-4 py-3 text-gray-600">{r.cost.toFixed(2)}</td>
+                <td className="px-4 py-3">
+                  <div className="flex gap-2">
+                    <Button
+                      className="cursor-pointer"
+                      onClick={() => handleCloseRepair(r.id, 'EN_SERVICE')}
+                      variant="primary"
+                      disabled={loading}
+                    >
+                      En service
+                    </Button>
+                    <Button
+                      className="cursor-pointer"
+                      onClick={() => handleCloseRepair(r.id, 'HORS_SERVICE')}
+                      variant="danger"
+                      disabled={loading}
+                    >
+                      Hors service
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
           {!repairs.length ? (
             <tr>
               <td className="px-4 py-8 text-center text-gray-500" colSpan={7}>
@@ -198,4 +213,3 @@ export function WorkshopPage() {
     </div>
   )
 }
-

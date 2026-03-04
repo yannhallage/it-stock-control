@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from 'react'
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { BeatLoader } from 'react-spinners'
 import { Button } from './Ui'
 
 type ModalProps = PropsWithChildren<{
@@ -110,7 +111,8 @@ export function ConfirmModal({
           <Button type="button" variant="default" onClick={onClose} disabled={loading}>
             {cancelLabel}
           </Button>
-          <Button type="button" variant={variant} onClick={onConfirm} disabled={loading}>
+          <Button type="button" variant={variant} onClick={onConfirm} disabled={loading} className="flex items-center gap-2">
+            {loading ? <BeatLoader size={8} color="white" /> : null}
             {loading ? 'En cours…' : confirmLabel}
           </Button>
         </>

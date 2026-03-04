@@ -3,6 +3,7 @@ const SESSION_DURATION_MS = 30 * 60 * 1000 // 30 minutes
 
 export type Session = {
   user: string
+  accessToken?: string
   expiresAt: number
 }
 
@@ -30,9 +31,10 @@ export function getSession(): Session | null {
 }
 
 /** Enregistre une session valide 30 minutes. */
-export function setSession(user: string): void {
+export function setSession(user: string, accessToken?: string): void {
   const session: Session = {
     user,
+    ...(accessToken && { accessToken }),
     expiresAt: Date.now() + SESSION_DURATION_MS,
   }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(session))

@@ -190,7 +190,7 @@ export function AssetsPage() {
       </ConfirmModal>
       <div className="flex items-center justify-between">
         <PageTitle>Gestion de Stock</PageTitle>
-        <Button onClick={load} disabled={loading} className="cursor-pointer">
+        <Button onClick={load} disabled={loading} className="cursor-pointer flex items-center gap-2">
           Actualiser
         </Button>
       </div>
@@ -250,7 +250,7 @@ export function AssetsPage() {
             ))}
           </Select>
           <div className="md:col-span-3">
-            <Button type="submit" className="cursor-pointer" variant="primary">
+            <Button type="submit" className="cursor-pointer flex items-center gap-2" variant="primary" disabled={loading}>
               Ajouter
             </Button>
           </div>
@@ -285,7 +285,7 @@ export function AssetsPage() {
             ))}
           </Select>
           <div className="flex items-end gap-2">
-            <Button onClick={load} className="cursor-pointer" disabled={loading}>
+            <Button onClick={load} className="cursor-pointer flex items-center gap-2" disabled={loading}>
               Filtrer
             </Button>
             <Button
@@ -296,6 +296,7 @@ export function AssetsPage() {
                 setTimeout(load, 0)
               }}
               disabled={loading}
+              className="flex items-center gap-2"
             >
               Réinitialiser
             </Button>
@@ -319,18 +320,18 @@ export function AssetsPage() {
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
                   <div
-                    className="rounded p-1.5 text-gray-600 hover:bg-gray-100 hover:text-gray-900 cursor-pointer"
+                    className={`rounded p-1.5 text-gray-600 hover:bg-gray-100 hover:text-gray-900 cursor-pointer ${loading ? 'pointer-events-none opacity-50' : ''}`}
                     title="Historique / Aperçu"
                     aria-label="Voir l'historique"
-                    onClick={() => window.location.href = `/assets/${a.id}`}
+                    onClick={() => !loading && (window.location.href = `/assets/${a.id}`)}
                   >
                     Historique
                   </div>
                   <div
-                    className="rounded p-1.5 text-gray-600 hover:bg-red-50 hover:text-red-600 cursor-pointer"
+                    className={`rounded p-1.5 text-gray-600 hover:bg-red-50 hover:text-red-600 cursor-pointer ${loading ? 'pointer-events-none opacity-50' : ''}`}
                     title="Supprimer"
                     aria-label="Supprimer"
-                    onClick={() => setAssetToDelete(a.id)}
+                    onClick={() => !loading && setAssetToDelete(a.id)}
                   >
                     Supprimer
                   </div>

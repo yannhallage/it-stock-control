@@ -1,23 +1,26 @@
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
-import { api } from '../lib/api'
+import { useAssets } from '../api/hooks/useAssets'
+import { useIncidents } from '../api/hooks/useIncidents'
 import { formatDate } from '../lib/format'
 import type { Asset, Incident } from '../types'
-import { Button, Card, PageTitle, Select, Table, Textarea, Input } from '../components/Ui'
-
-type IncidentRow = Incident & { asset: Asset }
+import { Button, Card, Input, PageTitle, Select, Table, Textarea } from '../components/Ui'
 
 export function IncidentsPage() {
   const [assets, setAssets] = useState<Asset[]>([])
-  const [items, setItems] = useState<IncidentRow[]>([])
-  const [loading, setLoading] = useState(false)
+  const [items, setItems] = useState<Incident[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const [assetId, setAssetId] = useState<number | ''>('')
   const [department, setDepartment] = useState('')
   const [reportedAt, setReportedAt] = useState(new Date().toISOString().slice(0, 10))
   const [description, setDescription] = useState('')
+
+  const { fetchAssets, loading: assetsLoading } = useAssets()
+  const { fetchIncidents, createIncidentForAsset, loading: incidentsLoading, error: apiError } = useIncidents()
+
+  const loading = assetsLoading || incidentsLoading
 
   const assetsById = useMemo(() => {
     const m = new Map<number, Asset>()
@@ -26,26 +29,22 @@ export function IncidentsPage() {
   }, [assets])
 
   function load() {
-    setLoading(true)
     setError(null)
-    Promise.all([
-      api<Asset[]>('/api/assets'),
-      api<IncidentRow[]>('/api/incidents?status=OUVERT'),
-    ])
+    Promise.all([fetchAssets(), fetchIncidents({ status: 'OUVERT' })])
       .then(([a, i]) => {
-        setAssets(a)
-        setItems(i)
+        setAssets(a ?? [])
+        setItems(i ?? [])
       })
       .catch((e) => {
         const msg = String(e?.message ?? e)
         setError(msg)
         toast.error(msg || 'Erreur lors du chargement.')
       })
-      .finally(() => setLoading(false))
   }
 
   useEffect(() => {
     load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function createIncident(e: React.FormEvent) {
@@ -56,20 +55,17 @@ export function IncidentsPage() {
       return
     }
     try {
-      await api<Incident>(`/api/assets/${assetId}/incidents`, {
-        method: 'POST',
-        body: JSON.stringify({ department, reportedAt, description }),
-      })
+      await createIncidentForAsset(Number(assetId), { department, reportedAt, description })
       toast.success('Panne enregistrée avec succès.')
       setAssetId('')
       setDepartment('')
       setReportedAt(new Date().toISOString().slice(0, 10))
       setDescription('')
       load()
-    } catch (err: any) {
-      const msg = String(err?.message ?? err)
+    } catch (err: unknown) {
+      const msg = String(err instanceof Error ? err.message : err)
       setError(msg)
-      toast.error(msg || 'Erreur lors de l\'enregistrement de la panne.')
+      toast.error(msg || "Erreur lors de l'enregistrement de la panne.")
     }
   }
 
@@ -77,14 +73,14 @@ export function IncidentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <PageTitle>Gestion des Pannes</PageTitle>
-        <Button onClick={load} className="cursor-pointer" disabled={loading}>
+        <Button onClick={load} className="cursor-pointer flex items-center gap-2" disabled={loading}>
           Actualiser
         </Button>
       </div>
 
-      {error ? (
+      {error ?? apiError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          {error}
+          {error ?? apiError}
         </div>
       ) : null}
 
@@ -123,20 +119,20 @@ export function IncidentsPage() {
             />
           </div>
           <div className="md:col-span-2">
-            <Button type="submit" className="cursor-pointer" variant="primary" disabled={loading}>
+            <Button type="submit" className="cursor-pointer flex items-center gap-2" variant="primary" disabled={loading}>
               Enregistrer la panne
             </Button>
           </div>
         </form>
         <div className="mt-3 text-xs text-slate-600">
-          Lorsqu’une panne est signalée, l’état du matériel passe automatiquement à <b>En Panne</b>.
+          Lorsqu'une panne est signalée, l'état du matériel passe automatiquement à <b>En Panne</b>.
         </div>
       </Card>
 
       <Card title="Pannes en cours (incidents ouverts)">
         <Table columns={['Inventaire', 'Matériel', 'Direction', 'Signalé le', 'Description']}>
           {items.map((it) => {
-            const a = it.asset ?? assetsById.get(it.assetId)
+            const a = assetsById.get(it.assetId)
             return (
               <tr key={it.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-gray-900">
@@ -165,4 +161,3 @@ export function IncidentsPage() {
     </div>
   )
 }
-

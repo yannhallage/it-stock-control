@@ -147,14 +147,16 @@ export function MaterialTypesPage() {
                 <button
                   type="button"
                   onClick={() => openEdit(t)}
-                  className="rounded px-2 py-1 text-xs text-gray-700 cursor-pointer hover:bg-gray-100"
+                  className="rounded px-2 py-1 text-xs text-gray-700 cursor-pointer hover:bg-gray-100 disabled:pointer-events-none disabled:opacity-50"
+                  disabled={loading}
                 >
                   Modifier
                 </button>
                 <button
                   type="button"
                   onClick={() => handleDelete(t.id)}
-                  className="rounded px-2 py-1 text-xs text-red-600 cursor-pointer hover:bg-red-50"
+                  className="rounded px-2 py-1 text-xs text-red-600 cursor-pointer hover:bg-red-50 disabled:pointer-events-none disabled:opacity-50"
+                  disabled={loading}
                 >
                   Supprimer
                 </button>
@@ -165,9 +167,15 @@ export function MaterialTypesPage() {
         {!filteredItems.length && (
           <tr>
             <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
-              {items.length === 0
-                ? 'Aucun type de matériel. Cliquez sur « Ajouter un type » pour commencer.'
-                : 'Aucun résultat pour cette recherche.'}
+              {items.length === 0 ? (
+                loading ? (
+                  'Chargement…'
+                ) : (
+                  'Aucun type de matériel. Cliquez sur « Ajouter un type » pour commencer.'
+                )
+              ) : (
+                'Aucun résultat pour cette recherche.'
+              )}
             </td>
           </tr>
         )}
@@ -199,10 +207,10 @@ export function MaterialTypesPage() {
                 placeholder="Détails sur le type de matériel"
               />
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" onClick={closeModal}>
+                <Button type="button" onClick={closeModal} disabled={loading}>
                   Annuler
                 </Button>
-                <Button type="submit" variant="primary">
+                <Button type="submit" variant="primary" disabled={loading} className="flex items-center gap-2">
                   {editingId !== null ? 'Enregistrer' : 'Ajouter'}
                 </Button>
               </div>

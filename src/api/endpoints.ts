@@ -21,6 +21,19 @@ export const ENDPOINTS = {
     // Correspond à app.use('/api/material-types', materialTypesModule.router);
     base: '/api/material-types',
   },
+  assignments: {
+    // Routing du module des affectations
+    // Correspond à app.use('/api', assignmentsModule.router) avec préfixe /assignments
+    base: '/api/assignments',
+  },
+  incidents: {
+    // Routing du module des incidents (pannes)
+    base: '/api/incidents',
+  },
+  workshop: {
+    // Atelier : réparations
+    base: '/api/atelier/repairs',
+  },
 } as const
 
 

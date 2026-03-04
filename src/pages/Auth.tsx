@@ -1,7 +1,6 @@
 import type React from 'react'
 import { useState } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { PulseLoader } from 'react-spinners'
 import { getSession, setSession } from '../lib/auth'
 import { useLogin } from '../api/hooks/useLogin'
 
@@ -33,8 +32,8 @@ export function AuthPage() {
       return
     }
     try {
-      await login({ email: identifier.trim(), password })
-      setSession(identifier.trim())
+      const res = await login({ email: identifier.trim(), password })
+      setSession(identifier.trim(), res.accessToken)
       navigate(redirectTo, { replace: true })
     } catch (err) {
       // L'erreur principale vient déjà du hook (apiError), mais on garde un fallback local
@@ -131,14 +130,7 @@ export function AuthPage() {
                 disabled={loading}
                 className="mt-8 flex w-full cursor-pointer items-center justify-center gap-2 bg-[var(--color-primary)] py-3.5 text-sm font-medium text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading ? (
-                  <>
-                    <PulseLoader color="#fff" size={8} margin={4} />
-                    {/* <span>Connexion…</span> */}
-                  </>
-                ) : (
-                  'Se connecter'
-                )}
+                {loading ? 'Connexion…' : 'Se connecter'}
               </button>
             </form>
           </div>

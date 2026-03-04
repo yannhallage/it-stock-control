@@ -214,16 +214,18 @@ export function SuppliersPage() {
                   <button
                     type="button"
                     onClick={() => openEdit(s)}
-                    className="p-1.5 text-gray-500 cursor-pointer  hover:bg-gray-100 hover:text-gray-700"
+                    className="p-1.5 text-gray-500 cursor-pointer  hover:bg-gray-100 hover:text-gray-700 disabled:pointer-events-none disabled:opacity-50"
                     aria-label="Modifier"
+                    disabled={loading}
                   >
                     <PencilIcon className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(s.id)}
-                    className="p-1.5 text-red-500 cursor-pointer hover:bg-red-50 hover:text-red-600"
+                    className="p-1.5 text-red-500 cursor-pointer hover:bg-red-50 hover:text-red-600 disabled:pointer-events-none disabled:opacity-50"
                     aria-label="Supprimer"
+                    disabled={loading}
                   >
                     <TrashIcon className="h-4 w-4" />
                   </button>
@@ -242,11 +244,15 @@ export function SuppliersPage() {
 
       {filteredSuppliers.length === 0 && (
         <div className="border border-gray-200 bg-white py-16 text-center">
-          <p className="text-gray-500">
-            {suppliers.length === 0
-              ? 'Aucun fournisseur. Cliquez sur « Ajouter un fournisseur » pour commencer.'
-              : 'Aucun résultat pour cette recherche.'}
-          </p>
+          {suppliers.length === 0 && loading ? (
+            <p className="text-gray-500">Chargement…</p>
+          ) : (
+            <p className="text-gray-500">
+              {suppliers.length === 0
+                ? 'Aucun fournisseur. Cliquez sur « Ajouter un fournisseur » pour commencer.'
+                : 'Aucun résultat pour cette recherche.'}
+            </p>
+          )}
         </div>
       )}
 
@@ -283,10 +289,10 @@ export function SuppliersPage() {
                 placeholder="Adresse du fournisseur"
               />
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" onClick={closeModal}>
+                <Button type="button" onClick={closeModal} disabled={loading}>
                   Annuler
                 </Button>
-                <Button type="submit" variant="primary">
+                <Button type="submit" variant="primary" disabled={loading} className="flex items-center gap-2">
                   {editingId !== null ? 'Enregistrer' : 'Ajouter'}
                 </Button>
               </div>
