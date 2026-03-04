@@ -3,18 +3,19 @@ import { useState } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { PulseLoader } from 'react-spinners'
 import { getSession, setSession } from '../lib/auth'
+import { useLogin } from '../api/hooks/useLogin'
 
-const DEFAULT_IDENTIFIER = 'admin@parc-info.local'
-const DEFAULT_PASSWORD = 'demo'
+const DEFAULT_IDENTIFIER = import.meta.env.VITE_DEFAULT_IDENTIFIER
+const DEFAULT_PASSWORD = import.meta.env.VITE_DEFAULT_PASSWORD
 
 export function AuthPage() {
   const [identifier, setIdentifier] = useState(DEFAULT_IDENTIFIER)
   const [password, setPassword] = useState(DEFAULT_PASSWORD)
   const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const redirectTo = searchParams.get('redirect') ?? '/'
+  const { login, loading, error: apiError } = useLogin()
 
   if (getSession()) {
     return <Navigate to={redirectTo} replace />
@@ -31,15 +32,13 @@ export function AuthPage() {
       setError('Veuillez saisir votre mot de passe.')
       return
     }
-    setLoading(true)
     try {
-      await new Promise((r) => setTimeout(r, 600))
+      await login({ email: identifier.trim(), password })
       setSession(identifier.trim())
       navigate(redirectTo, { replace: true })
     } catch (err) {
+      // L'erreur principale vient déjà du hook (apiError), mais on garde un fallback local
       setError(err instanceof Error ? err.message : 'Erreur de connexion.')
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -90,9 +89,9 @@ export function AuthPage() {
             </p>
 
             <form onSubmit={handleSubmit} className="mt-8">
-              {error ? (
+              {error || apiError ? (
                 <div className="mb-5 bg-red-50 py-2.5 px-3 text-sm text-red-800">
-                  {error}
+                  {error ?? apiError}
                 </div>
               ) : null}
 

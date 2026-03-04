@@ -1,23 +1,21 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
 import { Button, Input, Table } from '../components/Ui'
-
-type MaterialType = {
-  id: number
-  name: string
-  description: string
-}
-
-let nextId = 1
+import { useMaterialTypes } from '../api/hooks/useMaterialTypes'
+import type { MaterialType } from '../api/services/material-types.service'
 
 export function MaterialTypesPage() {
   const [items, setItems] = useState<MaterialType[]>([])
+  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+
+  const { fetchMaterialTypes, createMaterialType, updateMaterialType, deleteMaterialType, loading, error: apiError } =
+    useMaterialTypes()
 
   const filteredItems = useMemo(() => {
     if (!search.trim()) return items
@@ -48,47 +46,74 @@ export function MaterialTypesPage() {
     setEditingId(null)
   }
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    setError(null)
+    fetchMaterialTypes()
+      .then(setItems)
+      .catch((e) => {
+        const msg = String(e?.message ?? e)
+        toast.error(msg || 'Erreur lors du chargement des types de matériel.')
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setError(null)
     const trimmedName = name.trim()
     if (!trimmedName) {
       toast.warning('Le libellé du type est obligatoire.')
       return
     }
 
-    if (editingId !== null) {
-      setItems((prev) =>
-        prev.map((t) =>
-          t.id === editingId
-            ? { ...t, name: trimmedName, description: description.trim() }
-            : t,
-        ),
-      )
-      toast.success('Type de matériel modifié avec succès.')
-    } else {
-      setItems((prev) => [
-        ...prev,
-        {
-          id: nextId++,
+    try {
+      if (editingId !== null) {
+        const updated = await updateMaterialType(editingId, {
           name: trimmedName,
           description: description.trim(),
-        },
-      ])
-      toast.success('Type de matériel ajouté avec succès.')
-    }
+        })
+        setItems((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
+        toast.success('Type de matériel modifié avec succès.')
+      } else {
+        const created = await createMaterialType({
+          name: trimmedName,
+          description: description.trim(),
+        })
+        setItems((prev) => [...prev, created])
+        toast.success('Type de matériel ajouté avec succès.')
+      }
 
-    closeModal()
+      closeModal()
+    } catch (e: any) {
+      const msg = String(e?.message ?? e)
+      setError(msg)
+      toast.error(msg || "Erreur lors de l'enregistrement du type de matériel.")
+    }
   }
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (window.confirm('Supprimer ce type de matériel ?')) {
-      setItems((prev) => prev.filter((t) => t.id !== id))
-      toast.success('Type de matériel supprimé.')
+      setError(null)
+      try {
+        await deleteMaterialType(id)
+        setItems((prev) => prev.filter((t) => t.id !== id))
+        toast.success('Type de matériel supprimé.')
+      } catch (e: any) {
+        const msg = String(e?.message ?? e)
+        setError(msg)
+        toast.error(msg || 'Erreur lors de la suppression du type de matériel.')
+      }
     }
   }
 
   return (
     <div className="space-y-6">
+      {error || apiError ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          {error ?? apiError}
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-md">
           <input
@@ -104,6 +129,7 @@ export function MaterialTypesPage() {
           variant="primary"
           onClick={openAdd}
           className="inline-flex items-center cursor-pointer gap-2 px-4 py-2.5"
+          disabled={loading}
         >
           Ajouter un type
         </Button>

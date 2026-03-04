@@ -1,15 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
 import { Button, Input } from '../components/Ui'
-
-type Supplier = {
-  id: number
-  name: string
-  contact: string
-  address: string
-}
-
-let nextId = 1
+import { useSuppliers } from '../api/hooks/useSuppliers'
+import type { Supplier } from '../api/services/suppliers.service'
 
 function SearchIcon({ className }: { className?: string }) {
   return (
@@ -62,12 +55,15 @@ function TrashIcon({ className }: { className?: string }) {
 
 export function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [name, setName] = useState('')
   const [contact, setContact] = useState('')
   const [address, setAddress] = useState('')
+
+  const { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier, loading, error: apiError } = useSuppliers()
 
   const filteredSuppliers = useMemo(() => {
     if (!search.trim()) return suppliers
@@ -101,41 +97,74 @@ export function SuppliersPage() {
     setEditingId(null)
   }
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    setError(null)
+    fetchSuppliers()
+      .then(setSuppliers)
+      .catch((e) => {
+        const msg = String(e?.message ?? e)
+        toast.error(msg || 'Erreur lors du chargement des fournisseurs.')
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setError(null)
     const trimmedName = name.trim()
     if (!trimmedName) {
       toast.warning('Le nom du fournisseur est obligatoire.')
       return
     }
-    if (editingId !== null) {
-      setSuppliers((prev) =>
-        prev.map((s) =>
-          s.id === editingId
-            ? { ...s, name: trimmedName, contact: contact.trim(), address: address.trim() }
-            : s,
-        ),
-      )
-      toast.success('Fournisseur modifié avec succès.')
-    } else {
-      setSuppliers((prev) => [
-        ...prev,
-        { id: nextId++, name: trimmedName, contact: contact.trim(), address: address.trim() },
-      ])
-      toast.success('Fournisseur ajouté avec succès.')
+    try {
+      if (editingId !== null) {
+        const updated = await updateSupplier(editingId, {
+          name: trimmedName,
+          contact: contact.trim(),
+          address: address.trim(),
+        })
+        setSuppliers((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+        toast.success('Fournisseur modifié avec succès.')
+      } else {
+        const created = await createSupplier({
+          name: trimmedName,
+          contact: contact.trim(),
+          address: address.trim(),
+        })
+        setSuppliers((prev) => [...prev, created])
+        toast.success('Fournisseur ajouté avec succès.')
+      }
+      closeModal()
+    } catch (e: any) {
+      const msg = String(e?.message ?? e)
+      setError(msg)
+      toast.error(msg || "Erreur lors de l'enregistrement du fournisseur.")
     }
-    closeModal()
   }
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (window.confirm('Supprimer ce fournisseur ?')) {
-      setSuppliers((prev) => prev.filter((s) => s.id !== id))
-      toast.success('Fournisseur supprimé.')
+      setError(null)
+      try {
+        await deleteSupplier(id)
+        setSuppliers((prev) => prev.filter((s) => s.id !== id))
+        toast.success('Fournisseur supprimé.')
+      } catch (e: any) {
+        const msg = String(e?.message ?? e)
+        setError(msg)
+        toast.error(msg || 'Erreur lors de la suppression du fournisseur.')
+      }
     }
   }
 
   return (
     <div className="space-y-6">
+      {error || apiError ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          {error ?? apiError}
+        </div>
+      ) : null}
+
       {/* Barre : recherche + bouton Ajouter */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-md">
@@ -153,6 +182,7 @@ export function SuppliersPage() {
           variant="primary"
           onClick={openAdd}
           className="inline-flex items-center cursor-pointer gap-2 px-4 py-2.5"
+          disabled={loading}
         >
           <PlusIcon className="h-5 w-5" />
           Ajouter un fournisseur

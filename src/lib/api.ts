@@ -402,6 +402,18 @@ function handlePostFinishRepair(repairId: number, init?: RequestInit) {
   return repair
 }
 
+function handleDeleteAsset(assetId: number) {
+  const idx = db.assets.findIndex((a) => a.id === assetId)
+  if (idx === -1) throw new ApiError('Matériel introuvable', 404, { assetId })
+  const incidentIds = db.incidents.filter((i) => i.assetId === assetId).map((i) => i.id)
+  db.repairs = db.repairs.filter((r) => !incidentIds.includes(r.incidentId))
+  db.incidents = db.incidents.filter((i) => i.assetId !== assetId)
+  db.assignments = db.assignments.filter((a) => a.assetId !== assetId)
+  db.history = db.history.filter((h) => h.assetId !== assetId)
+  db.assets.splice(idx, 1)
+  return undefined
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method ?? 'GET').toUpperCase()
   const url = parseUrl(path)
@@ -417,6 +429,10 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     {
       const m = pathname.match(/^\/api\/assets\/(\d+)$/)
       if (method === 'GET' && m) return clone(assetDetails(Number(m[1]))) as T
+      if (method === 'DELETE' && m) {
+        handleDeleteAsset(Number(m[1]))
+        return undefined as T
+      }
     }
 
     // POST
