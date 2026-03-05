@@ -149,9 +149,12 @@ export function AssetDetailsPage() {
           <Button onClick={load} disabled={loading} className="flex items-center gap-2">
             Actualiser
           </Button>
-          <Button as={Link} to="/assets" variant="default" className="text-[var(--color-link)]">
+          <Link
+            to="/assets"
+            className="inline-flex items-center justify-center border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-[var(--color-link)] transition-colors hover:bg-gray-50"
+          >
             Retour à la liste
-          </Button>
+          </Link>
         </div>
       </div>
 
