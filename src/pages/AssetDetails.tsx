@@ -7,6 +7,73 @@ import type { Asset, Assignment, HistoryEvent, Incident, Repair } from '../types
 import { StatusBadge } from '../components/Badge'
 import { Button, Card, PageTitle, Table } from '../components/Ui'
 
+const HISTORY_TYPE_LABELS: Record<HistoryEvent['type'], string> = {
+  ASSET_CREATED: 'Création du matériel',
+  STATUS_CHANGED: 'Changement d\'état',
+  ASSIGNMENT_CREATED: 'Affectation créée',
+  ASSIGNMENT_ENDED: 'Fin d\'affectation',
+  INCIDENT_REPORTED: 'Incident signalé',
+  REPAIR_STARTED: 'Réparation démarrée',
+  REPAIR_FINISHED: 'Réparation terminée',
+}
+
+function HistoryTimeline({ events }: { events: HistoryEvent[] }) {
+  if (!events.length) {
+    return <div className="py-4 text-sm text-slate-600">Aucun événement.</div>
+  }
+  return (
+    <div className="relative">
+      {/* Ligne verticale (fil d'Ariane) */}
+      <div
+        className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-slate-200"
+        aria-hidden
+      />
+      <ul className="space-y-0">
+        {events.map((h, index) => (
+          <li key={h.id} className="relative flex gap-4 pb-6 last:pb-0">
+            {/* Nœud sur le fil */}
+            <div
+              className="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-slate-300 bg-white text-[10px] font-semibold text-slate-600"
+              aria-hidden
+            >
+              {index + 1}
+            </div>
+            {/* Contenu */}
+            <div className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-semibold text-slate-900">
+                  {HISTORY_TYPE_LABELS[h.type] ?? h.type}
+                </span>
+                <span className="text-xs text-slate-500">
+                  {new Date(h.createdAt).toLocaleString('fr-FR', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+              {Object.keys(h.payload).length > 0 && (
+                <dl className="mt-2 grid grid-cols-1 gap-1 text-xs sm:grid-cols-2">
+                  {Object.entries(h.payload).map(([k, v]) => (
+                    <div key={k} className="flex gap-2">
+                      <dt className="shrink-0 font-medium text-slate-600">{k}:</dt>
+                      <dd className="min-w-0 truncate text-slate-800">
+                        {typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 type AssetDetails = Asset & {
   assignments: Assignment[]
   incidents: (Incident & { repairs: Repair[] })[]
@@ -50,7 +117,7 @@ export function AssetDetailsPage() {
     )
   }
 
-  if (!data && !error) {
+  if (!data) {
     return (
       <div className="py-12 text-center text-gray-500">
         Chargement…
@@ -74,6 +141,9 @@ export function AssetDetailsPage() {
           <Button onClick={load} disabled={loading} className="flex items-center gap-2">
             Actualiser
           </Button>
+          <Button as={Link} to="/assets" variant="default" className="text-[var(--color-link)]">
+            Retour à la liste
+          </Button>
         </div>
       </div>
 
@@ -89,20 +159,7 @@ export function AssetDetailsPage() {
       </Card>
 
       <Card title="Historique (mouvements + états + réparations)">
-        <div className="space-y-2">
-          {data.history.map((h) => (
-            <div key={h.id} className="border border-slate-200 bg-white p-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-900">{h.type}</span>
-                <span className="text-slate-600">{new Date(h.createdAt).toLocaleString('fr-FR')}</span>
-              </div>
-              <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs text-slate-700">
-                {JSON.stringify(h.payload, null, 2)}
-              </pre>
-            </div>
-          ))}
-          {!data.history.length ? <div className="text-sm text-slate-600">—</div> : null}
-        </div>
+        <HistoryTimeline events={data.history.slice(0, 10)} />
       </Card>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -175,11 +232,11 @@ export function AssetDetailsPage() {
         </div>
       </Card>
 
-      <div>
-        <Link className="text-[var(--color-link)] hover:underline" to="/assets">
+      {/* <div>
+        <Button as={Link} to="/assets" variant="outline" className="text-[var(--color-link)]">
           Retour à la liste
-        </Link>
-      </div>
+        </Button>
+      </div> */}
     </div>
   )
 }

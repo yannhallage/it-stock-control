@@ -3,6 +3,7 @@ import type { Assignment } from '../../types'
 import {
   createAssignmentForAssetService,
   endAssignmentService,
+  listAllAssignmentsService,
   listAssignmentsService,
   type CreateAssignmentPayload,
   type ListAssignmentsParams,
@@ -10,6 +11,7 @@ import {
 
 type UseAssignmentsResult = {
   fetchAssignments: (params?: ListAssignmentsParams) => Promise<Assignment[]>
+  fetchAllAssignments: () => Promise<Assignment[]>
   createAssignmentForAsset: (assetId: number, payload: CreateAssignmentPayload) => Promise<Assignment>
   endAssignment: (id: number) => Promise<Assignment>
   loading: boolean
@@ -25,6 +27,20 @@ export function useAssignments(): UseAssignmentsResult {
     setError(null)
     try {
       return await listAssignmentsService(params ?? {})
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Erreur lors du chargement des affectations.'
+      setError(String(message))
+      throw e
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const fetchAllAssignments = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      return await listAllAssignmentsService()
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Erreur lors du chargement des affectations.'
       setError(String(message))
@@ -66,6 +82,7 @@ export function useAssignments(): UseAssignmentsResult {
 
   return {
     fetchAssignments,
+    fetchAllAssignments,
     createAssignmentForAsset: createForAsset,
     endAssignment: end,
     loading,

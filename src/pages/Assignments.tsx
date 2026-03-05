@@ -6,12 +6,13 @@ import { useAssignments } from '../api/hooks/useAssignments'
 import { formatDate } from '../lib/format'
 import type { Asset, AssetStatus, Assignment } from '../types'
 import { StatusBadge } from '../components/Badge'
-import { Button, Card, Input, PageTitle, Select, Table } from '../components/Ui'
+import { Avatar, Button, Card, Input, PageTitle, Select, Table } from '../components/Ui'
 
 type AssetRow = Asset & { activeAssignment?: Assignment | null }
 
 export function AssignmentsPage() {
   const [items, setItems] = useState<AssetRow[]>([])
+  const [assignments, setAssignments] = useState<Assignment[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const [assetId, setAssetId] = useState<number | ''>('')
@@ -20,7 +21,13 @@ export function AssignmentsPage() {
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
 
   const { fetchAssets, loading: assetsLoading } = useAssets()
-  const { createAssignmentForAsset, endAssignment, loading: assignmentsLoading, error: apiError } = useAssignments()
+  const {
+    createAssignmentForAsset,
+    endAssignment,
+    fetchAllAssignments,
+    loading: assignmentsLoading,
+    error: apiError,
+  } = useAssignments()
 
   const loading = assetsLoading || assignmentsLoading
 
@@ -31,8 +38,11 @@ export function AssignmentsPage() {
 
   function load() {
     setError(null)
-    fetchAssets({ with: 'activeAssignment' })
-      .then((data) => setItems((data as AssetRow[]) ?? []))
+    Promise.all([fetchAssets({ with: 'activeAssignment' }), fetchAllAssignments()])
+      .then(([assetsData, assignmentsData]) => {
+        setItems((assetsData as AssetRow[]) ?? [])
+        setAssignments(assignmentsData ?? [])
+      })
       .catch((e) => {
         const msg = String(e?.message ?? e)
         setError(msg)
@@ -53,7 +63,11 @@ export function AssignmentsPage() {
       return
     }
     try {
-      await createAssignmentForAsset(Number(assetId), { department, user, startDate })
+      await createAssignmentForAsset(Number(assetId), {
+        department,
+        user: { name: user },
+        startDate,
+      })
       toast.success('Affectation créée avec succès.')
       setAssetId('')
       setDepartment('')
@@ -138,41 +152,51 @@ export function AssignmentsPage() {
 
       <Card title="Affectations actives">
         <Table columns={['Inventaire', 'Matériel', 'État', 'Direction', 'Utilisateur', 'Début', 'Action']}>
-          {items
-            .filter((a) => a.activeAssignment)
-            .map((a) => (
-              <tr key={a.id} className="hover:bg-gray-50">
-                <td className="border-b border-slate-100 px-3 py-2 font-medium text-gray-900">
-                  {a.inventoryNumber}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-2">
-                  {a.type} — {a.brand} {a.model}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-2">
-                  <StatusBadge status={a.status} />
-                </td>
-                <td className="border-b border-slate-100 px-3 py-2">
-                  {a.activeAssignment?.department}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-2">
-                  {a.activeAssignment?.user}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-2">
-                  {formatDate(a.activeAssignment?.startDate ?? '')}
-                </td>
-                <td className="border-b border-slate-100 px-3 py-2">
-                  <Button
-                    onClick={() => a.activeAssignment && handleEndAssignment(a.activeAssignment.id)}
-                    variant="default"
-                    className="cursor-pointer"
-                    disabled={loading}
-                  >
-                    Fin d'affectation
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          {!items.filter((a) => a.activeAssignment).length ? (
+          {assignments
+            .filter((a) => !a.endDate)
+            .map((a) => {
+              const asset = items.find((i) => i.id === a.assetId)
+              return (
+                <tr key={a.id} className="hover:bg-gray-50">
+                  <td className="border-b border-slate-100 px-3 py-2 font-medium text-gray-900">
+                    {asset?.inventoryNumber ?? '—'}
+                  </td>
+                  <td className="border-b border-slate-100 px-3 py-2">
+                    {asset ? `${asset.type} — ${asset.brand} ${asset.model}` : '—'}
+                  </td>
+                  <td className="border-b border-slate-100 px-3 py-2">
+                    {asset ? <StatusBadge status={asset.status} /> : '—'}
+                  </td>
+                  <td className="border-b border-slate-100 px-3 py-2">{a.department}</td>
+                  <td className="border-b border-slate-100 px-3 py-2">
+                    {(() => {
+                      const userName =
+                        typeof a.user === 'string' ? a.user : (a.user as { name?: string })?.name ?? ''
+                      return userName ? (
+                        <span className="flex items-center gap-2">
+                          <Avatar name={userName} size="sm" />
+                          <span className="text-gray-900">{userName}</span>
+                        </span>
+                      ) : (
+                        '—'
+                      )
+                    })()}
+                  </td>
+                  <td className="border-b border-slate-100 px-3 py-2">{formatDate(a.startDate)}</td>
+                  <td className="border-b border-slate-100 px-3 py-2">
+                    <Button
+                      onClick={() => handleEndAssignment(a.id)}
+                      variant="default"
+                      className="cursor-pointer"
+                      disabled={loading}
+                    >
+                      Fin d'affectation
+                    </Button>
+                  </td>
+                </tr>
+              )
+            })}
+          {!assignments.filter((a) => !a.endDate).length ? (
             <tr>
               <td className="px-4 py-8 text-center text-gray-500" colSpan={7}>
                 {loading ? 'Chargement…' : 'Aucune affectation active.'}

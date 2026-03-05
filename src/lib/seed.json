@@ -163,6 +163,62 @@
       "type": "REPAIR_STARTED",
       "payload": { "workshopIn": "2025-12-10", "cost": 85.5 },
       "createdAt": "2025-12-10T11:30:00.000Z"
+    },
+    {
+      "id": 6,
+      "assetId": 1,
+      "type": "STATUS_CHANGED",
+      "payload": { "from": "EN_STOCK", "to": "AFFECTE" },
+      "createdAt": "2025-11-02T09:55:00.000Z"
+    },
+    {
+      "id": 7,
+      "assetId": 1,
+      "type": "ASSIGNMENT_ENDED",
+      "payload": { "assignmentId": 0, "endDate": "2025-10-15" },
+      "createdAt": "2025-10-15T14:00:00.000Z"
+    },
+    {
+      "id": 8,
+      "assetId": 1,
+      "type": "ASSIGNMENT_CREATED",
+      "payload": { "department": "DSI", "user": "M. Dupont", "startDate": "2025-10-01" },
+      "createdAt": "2025-10-01T08:30:00.000Z"
+    },
+    {
+      "id": 9,
+      "assetId": 1,
+      "type": "STATUS_CHANGED",
+      "payload": { "from": "EN_STOCK", "to": "AFFECTE" },
+      "createdAt": "2025-10-01T08:28:00.000Z"
+    },
+    {
+      "id": 10,
+      "assetId": 1,
+      "type": "ASSIGNMENT_ENDED",
+      "payload": { "assignmentId": 0, "endDate": "2025-09-30" },
+      "createdAt": "2025-09-30T17:00:00.000Z"
+    },
+    {
+      "id": 11,
+      "assetId": 1,
+      "type": "ASSIGNMENT_CREATED",
+      "payload": { "department": "RH", "user": "L. Bernard", "startDate": "2025-09-20" },
+      "createdAt": "2025-09-20T09:00:00.000Z"
+    },
+    {
+      "id": 12,
+      "assetId": 1,
+      "type": "STATUS_CHANGED",
+      "payload": { "from": "EN_STOCK", "to": "AFFECTE" },
+      "createdAt": "2025-09-20T08:58:00.000Z"
+    },
+    {
+      "id": 13,
+      "assetId": 1,
+      "type": "STATUS_CHANGED",
+      "payload": { "from": "EN_STOCK", "to": "EN_STOCK" },
+      "createdAt": "2025-09-15T10:00:00.000Z"
     }
   ]
 }

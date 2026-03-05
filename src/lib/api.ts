@@ -260,12 +260,22 @@ function handlePostAssetAssignment(assetId: number, init?: RequestInit) {
 
   const input = (jsonBody(init) ?? {}) as Partial<{
     department: string
-    user: string
+    user: string | Record<string, unknown>
     startDate: string
   }>
-  if (!input.department || !input.user || !input.startDate) {
+  if (
+    !input.department ||
+    input.user == null ||
+    typeof input.user !== 'object' ||
+    Array.isArray(input.user) ||
+    !input.startDate
+  ) {
     throw new ApiError('Champs manquants', 400, input)
   }
+  const userDisplay =
+    typeof input.user === 'object' && !Array.isArray(input.user) && input.user !== null && 'name' in input.user
+      ? String((input.user as { name: string }).name)
+      : String(input.user)
 
   const prevActive = activeAssignmentFor(assetId)
   if (prevActive) {
@@ -277,7 +287,7 @@ function handlePostAssetAssignment(assetId: number, init?: RequestInit) {
     id: nextId(db.assignments),
     assetId,
     department: input.department,
-    user: input.user,
+    user: userDisplay,
     startDate: input.startDate,
     endDate: null,
     createdAt: nowIso(),
