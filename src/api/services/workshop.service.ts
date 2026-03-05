@@ -9,7 +9,13 @@ export type ListRepairsParams = {
 }
 
 /** Réparation avec incident et matériel (selon la réponse backend) */
-export type RepairWithRelations = Repair & {
+export type RepairWithRelations = Omit<Repair, 'workshopIn' | 'cost'> & {
+  /** Ancien champ ou mock */
+  workshopIn?: string
+  /** Champ renvoyé par l’API (camelCase) */
+  workshopEntryDate?: string
+  /** Coût parfois renvoyé en string par l’API */
+  cost?: number | string
   incident?: Incident & { asset?: Asset }
 }
 

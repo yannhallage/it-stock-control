@@ -1,4 +1,5 @@
 import type React from 'react'
+import { BeatLoader } from 'react-spinners'
 import { useState } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { getSession, setSession } from '../lib/auth'
@@ -130,7 +131,16 @@ export function AuthPage() {
                 disabled={loading}
                 className="mt-8 flex w-full cursor-pointer items-center justify-center gap-2 bg-[var(--color-primary)] py-3.5 text-sm font-medium text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading ? 'Connexion…' : 'Se connecter'}
+                {loading ? (
+                  <>
+                    <span className="flex items-center gap-2">
+                      {/* <span>Connexion…</span> */}
+                      <span>
+                        <BeatLoader size={8} color="white" />
+                      </span>
+                    </span>
+                  </>
+                ) : 'Se connecter'}
               </button>
             </form>
           </div>

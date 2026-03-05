@@ -17,6 +17,14 @@ const HISTORY_TYPE_LABELS: Record<HistoryEvent['type'], string> = {
   REPAIR_FINISHED: 'Réparation terminée',
 }
 
+function formatAssignmentUser(user: Assignment['user']): string {
+  if (typeof user === 'string') return user
+  if (user && typeof user === 'object' && Array.isArray((user as { names?: string[] }).names))
+    return ((user as { names: string[] }).names).join(', ')
+  if (user && typeof user === 'object' && 'name' in user) return String((user as { name: string }).name)
+  return ''
+}
+
 function HistoryTimeline({ events }: { events: HistoryEvent[] }) {
   if (!events.length) {
     return <div className="py-4 text-sm text-slate-600">Aucun événement.</div>
@@ -150,7 +158,7 @@ export function AssetDetailsPage() {
       <Card title="Affectation actuelle">
         {data.activeAssignment ? (
           <div className="text-sm text-slate-900">
-            <b>{data.activeAssignment.department}</b> — {data.activeAssignment.user} (depuis{' '}
+            <b>{data.activeAssignment.department}</b> — {formatAssignmentUser(data.activeAssignment.user)} (depuis{' '}
             {formatDate(data.activeAssignment.startDate)})
           </div>
         ) : (
@@ -168,7 +176,7 @@ export function AssetDetailsPage() {
             {data.assignments.map((a) => (
               <tr key={a.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 text-gray-600">{a.department}</td>
-                <td className="px-4 py-3 text-gray-600">{a.user}</td>
+                <td className="px-4 py-3 text-gray-600">{formatAssignmentUser(a.user)}</td>
                 <td className="px-4 py-3 text-gray-600">{formatDate(a.startDate)}</td>
                 <td className="px-4 py-3 text-gray-600">
                   {a.endDate ? formatDate(a.endDate) : '—'}

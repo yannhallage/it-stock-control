@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
 import { useIncidents } from '../api/hooks/useIncidents'
@@ -18,7 +18,6 @@ export function WorkshopPage() {
 
   const [incidentId, setIncidentId] = useState<number | ''>('')
   const [action, setAction] = useState('')
-  const [cost, setCost] = useState('0')
   const [workshopIn, setWorkshopIn] = useState(new Date().toISOString().slice(0, 10))
 
   const { fetchAssets, loading: assetsLoading } = useAssets()
@@ -38,7 +37,7 @@ export function WorkshopPage() {
     [incidents],
   )
 
-  function load() {
+  const load = useCallback(() => {
     setError(null)
     Promise.all([
       fetchAssets(),
@@ -55,7 +54,7 @@ export function WorkshopPage() {
         setError(msg)
         toast.error(msg || 'Erreur lors du chargement.')
       })
-  }
+  }, [fetchAssets, fetchIncidents, fetchRepairs])
 
   useEffect(() => {
     load()
@@ -74,12 +73,10 @@ export function WorkshopPage() {
         incidentId: Number(incidentId),
         workshopEntryDate: workshopIn,
         action: action.trim() || undefined,
-        cost: cost ? Number(cost) : undefined,
       })
       toast.success('Réparation démarrée.')
       setIncidentId('')
       setAction('')
-      setCost('0')
       setWorkshopIn(new Date().toISOString().slice(0, 10))
       load()
     } catch (err: unknown) {
@@ -106,7 +103,7 @@ export function WorkshopPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <PageTitle>Suivi Atelier</PageTitle>
-        <Button onClick={load} disabled={loading} className="flex items-center gap-2 cursor-pointer">
+        <Button type="button" onClick={load} disabled={loading} className="flex items-center gap-2 cursor-pointer">
           Actualiser
         </Button>
       </div>
@@ -144,13 +141,6 @@ export function WorkshopPage() {
             rows={3}
             className="md:col-span-2"
           />
-          <Input
-            label="Coût"
-            type="number"
-            step="0.01"
-            value={cost}
-            onChange={(e) => setCost(e.target.value)}
-          />
           <div className="md:col-span-2">
             <Button type="submit" className="cursor-pointer flex items-center gap-2" variant="primary" disabled={loading}>
               Passer en réparation
@@ -160,7 +150,7 @@ export function WorkshopPage() {
       </Card>
 
       <Card title="Réparations en cours (alertes)">
-        <Table columns={['Matériel', 'État', 'Incident', 'Entrée atelier', 'Action', 'Coût', 'Clôture']}>
+        <Table columns={['Matériel', 'État', 'Incident', 'Entrée atelier', 'Action', 'Clôture']}>
           {repairs.map((r) => {
             const incident = r.incident
             const asset = r.incident?.asset ?? (r.incident ? assetsById.get(r.incident.assetId) : undefined)
@@ -175,9 +165,10 @@ export function WorkshopPage() {
                 <td className="px-4 py-3 text-gray-600">
                   #{r.incidentId} — {incident?.department ?? '—'}
                 </td>
-                <td className="px-4 py-3 text-gray-600">{formatDate(r.workshopIn)}</td>
+                <td className="px-4 py-3 text-gray-600">
+                  {formatDate(r.workshopEntryDate ?? r.workshopIn) || '—'}
+                </td>
                 <td className="px-4 py-3 text-gray-600">{r.action}</td>
-                <td className="px-4 py-3 text-gray-600">{r.cost.toFixed(2)}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
                     <Button
@@ -203,7 +194,7 @@ export function WorkshopPage() {
           })}
           {!repairs.length ? (
             <tr>
-              <td className="px-4 py-8 text-center text-gray-500" colSpan={7}>
+              <td className="px-4 py-8 text-center text-gray-500" colSpan={6}>
                 {loading ? 'Chargement…' : 'Aucune réparation en cours.'}
               </td>
             </tr>

@@ -9,7 +9,7 @@ export type ListAssignmentsParams = {
 
 export type CreateAssignmentPayload = {
   department: string
-  /** Objet JSON attendu par le backend (ex. { name: string }) */
+  /** Objet JSON attendu par le backend: { name: string } ou { names: string[] } pour plusieurs utilisateurs */
   user: Record<string, unknown>
   startDate: string
 }

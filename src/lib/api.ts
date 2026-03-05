@@ -272,10 +272,16 @@ function handlePostAssetAssignment(assetId: number, init?: RequestInit) {
   ) {
     throw new ApiError('Champs manquants', 400, input)
   }
-  const userDisplay =
-    typeof input.user === 'object' && !Array.isArray(input.user) && input.user !== null && 'name' in input.user
-      ? String((input.user as { name: string }).name)
-      : String(input.user)
+  let userDisplay: string
+  if (typeof input.user === 'object' && input.user !== null && 'names' in input.user) {
+    const names = (input.user as { names: string[] }).names
+    userDisplay = Array.isArray(names) ? names.map((n) => String(n).trim()).filter(Boolean).join(', ') : ''
+  } else if (typeof input.user === 'object' && input.user !== null && 'name' in input.user) {
+    userDisplay = String((input.user as { name: string }).name)
+  } else {
+    userDisplay = String(input.user)
+  }
+  if (!userDisplay) throw new ApiError('Champs manquants', 400, input)
 
   const prevActive = activeAssignmentFor(assetId)
   if (prevActive) {

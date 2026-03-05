@@ -6,7 +6,7 @@ import { useAssignments } from '../api/hooks/useAssignments'
 import { formatDate } from '../lib/format'
 import type { Asset, AssetStatus, Assignment } from '../types'
 import { StatusBadge } from '../components/Badge'
-import { Avatar, Button, Card, Input, PageTitle, Select, Table } from '../components/Ui'
+import { Avatar, Button, Card, Input, PageTitle, Select, Table, Tooltip } from '../components/Ui'
 
 type AssetRow = Asset & { activeAssignment?: Assignment | null }
 
@@ -17,7 +17,7 @@ export function AssignmentsPage() {
 
   const [assetId, setAssetId] = useState<number | ''>('')
   const [department, setDepartment] = useState('')
-  const [user, setUser] = useState('')
+  const [users, setUsers] = useState<string[]>([''])
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
 
   const { fetchAssets, loading: assetsLoading } = useAssets()
@@ -63,15 +63,20 @@ export function AssignmentsPage() {
       return
     }
     try {
+      const names = users.map((u) => u.trim()).filter(Boolean)
+      if (!names.length) {
+        toast.warning('Veuillez saisir au moins un utilisateur.')
+        return
+      }
       await createAssignmentForAsset(Number(assetId), {
         department,
-        user: { name: user },
+        user: names.length === 1 ? { name: names[0] } : { names },
         startDate,
       })
       toast.success('Affectation créée avec succès.')
       setAssetId('')
       setDepartment('')
-      setUser('')
+      setUsers([''])
       setStartDate(new Date().toISOString().slice(0, 10))
       load()
     } catch (err: unknown) {
@@ -110,7 +115,7 @@ export function AssignmentsPage() {
       ) : null}
 
       <Card title="Transférer un matériel du Stock vers une Direction">
-        <form className="grid grid-cols-1 gap-4 md:grid-cols-4" onSubmit={createAssignment}>
+        <form className="grid grid-cols-1 gap-4 md:grid-cols-3" onSubmit={createAssignment}>
           <Select
             label="Matériel"
             value={assetId}
@@ -129,17 +134,52 @@ export function AssignmentsPage() {
             onChange={(e) => setDepartment(e.target.value)}
           />
           <Input
-            label="Utilisateur"
-            value={user}
-            onChange={(e) => setUser(e.target.value)}
-          />
-          <Input
             label="Date début"
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
-          <div className="md:col-span-4">
+          <div className="space-y-2 md:col-span-3 max-w-md">
+            <div className="mb-1 text-xs font-medium text-gray-600">Utilisateurs</div>
+            {users.map((value, index) => (
+              <div key={index} className="flex gap-2 items-center">
+                <input
+                  className="min-w-0 flex-1 border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                  placeholder={index === 0 ? 'Nom de l\'utilisateur' : 'Autre utilisateur'}
+                  value={value}
+                  onChange={(e) => {
+                    const next = [...users]
+                    next[index] = e.target.value
+                    setUsers(next)
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="default"
+                  className="cursor-pointer shrink-0"
+                  onClick={() => {
+                    if (users.length <= 1) return
+                    setUsers(users.filter((_, i) => i !== index))
+                  }}
+                  disabled={users.length <= 1}
+                  title="Supprimer"
+                >
+                  −
+                </Button>
+              </div>
+            ))}
+            <div className="flex justify-end pt-1">
+              <Button
+                type="button"
+                variant="default"
+                className="cursor-pointer text-sm"
+                onClick={() => setUsers([...users, ''])}
+              >
+                + Ajouter un utilisateur
+              </Button>
+            </div>
+          </div>
+          <div className="md:col-span-3">
             <Button type="submit" className="cursor-pointer flex items-center gap-2" variant="primary" disabled={loading}>
               Affecter / transférer
             </Button>
@@ -151,7 +191,7 @@ export function AssignmentsPage() {
       </Card>
 
       <Card title="Affectations actives">
-        <Table columns={['Inventaire', 'Matériel', 'État', 'Direction', 'Utilisateur', 'Début', 'Action']}>
+        <Table columns={['Inventaire', 'Matériel', 'État', 'Direction', 'Utilisateur', 'Date affectation', 'Action']}>
           {assignments
             .filter((a) => !a.endDate)
             .map((a) => {
@@ -170,15 +210,34 @@ export function AssignmentsPage() {
                   <td className="border-b border-slate-100 px-3 py-2">{a.department}</td>
                   <td className="border-b border-slate-100 px-3 py-2">
                     {(() => {
-                      const userName =
-                        typeof a.user === 'string' ? a.user : (a.user as { name?: string })?.name ?? ''
-                      return userName ? (
-                        <span className="flex items-center gap-2">
-                          <Avatar name={userName} size="sm" />
-                          <span className="text-gray-900">{userName}</span>
+                      const u = a.user
+                      const names: string[] =
+                        u && typeof u === 'object' && 'names' in u && Array.isArray(u.names)
+                          ? u.names.filter(Boolean)
+                          : u && typeof u === 'object' && 'name' in u && typeof u.name === 'string'
+                            ? [u.name]
+                            : typeof u === 'string'
+                              ? u.split(/\s*,\s*/).map((n) => n.trim()).filter(Boolean)
+                              : []
+                      if (!names.length) return '—'
+                      if (names.length === 1) {
+                        return (
+                          <span className="flex items-center gap-2">
+                            <Avatar name={names[0]} size="sm" />
+                            <span className="text-gray-900">{names[0]}</span>
+                          </span>
+                        )
+                      }
+                      return (
+                        <span className="flex flex-wrap items-center gap-1">
+                          {names.map((userName, i) => (
+                            <Tooltip key={i} text={userName} placement="top">
+                              <span className="inline-flex transition-transform duration-200 group-hover:-translate-y-1">
+                                <Avatar name={userName} size="sm" maxLetters={1} />
+                              </span>
+                            </Tooltip>
+                          ))}
                         </span>
-                      ) : (
-                        '—'
                       )
                     })()}
                   </td>

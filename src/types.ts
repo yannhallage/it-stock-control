@@ -23,7 +23,8 @@ export type Assignment = {
   id: number
   assetId: number
   department: string
-  user: string
+  /** API: string (legacy) ou { name: string } ou { names: string[] } */
+  user: string | { name: string } | { names: string[] }
   startDate: string
   endDate: string | null
   createdAt: string
