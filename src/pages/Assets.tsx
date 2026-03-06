@@ -1,5 +1,6 @@
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
 import { useSuppliers } from '../api/hooks/useSuppliers'
@@ -319,14 +320,14 @@ export function AssetsPage() {
               </td>
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <div
+                  <Link
+                    to={`/assets/${a.id}`}
                     className={`rounded p-1.5 text-gray-600 hover:bg-gray-100 hover:text-gray-900 cursor-pointer ${loading ? 'pointer-events-none opacity-50' : ''}`}
                     title="Historique / Aperçu"
                     aria-label="Voir l'historique"
-                    onClick={() => !loading && (window.location.href = `/assets/${a.id}`)}
                   >
                     Historique
-                  </div>
+                  </Link>
                   <div
                     className={`rounded p-1.5 text-gray-600 hover:bg-red-50 hover:text-red-600 cursor-pointer ${loading ? 'pointer-events-none opacity-50' : ''}`}
                     title="Supprimer"

@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
-import { api } from '../lib/api'
-import type { DashboardStats } from '../types'
+import { get } from '../api/http'
+import { ENDPOINTS } from '../api/endpoints'
+import type { DashboardApiResponse } from '../types'
 import { Card, PageTitle, Table } from '../components/Ui'
 
 /** Vert principal de l'app (équivalent --color-primary) pour le rendu canvas ECharts */
 const CHART_BAR_COLOR = '#16a34a'
+
+const PIE_COLORS = ['#16a34a', '#2563eb', '#ea580c', '#6b7280']
 
 function StatPill({
   label,
@@ -56,9 +59,9 @@ function BarChartStatus({
 
     const option: EChartsOption = {
       animation: true,
-      animationDuration: 700,
-      animationEasing: 'cubicOut',
-      animationDelay: (idx: number) => idx * 80,
+      animationDuration: 1200,
+      animationEasing: 'elasticOut',
+      animationDelay: (idx: number) => idx * 100,
       grid: { left: 48, right: 24, top: 16, bottom: 48, containLabel: false },
       xAxis: {
         type: 'category',
@@ -82,6 +85,11 @@ function BarChartStatus({
             color: CHART_BAR_COLOR,
           },
           barMaxWidth: 48,
+          animationDelay: (idx: number) => idx * 100,
+          animationDuration: (idx: number) => 800 + idx * 50,
+          emphasis: {
+            itemStyle: { shadowBlur: 10, shadowColor: 'rgba(22, 163, 74, 0.4)' },
+          },
         },
       ],
       tooltip: {
@@ -144,9 +152,9 @@ function BarChartTopDepartments({
 
     const option: EChartsOption = {
       animation: true,
-      animationDuration: 700,
-      animationEasing: 'cubicOut',
-      animationDelay: (idx: number) => idx * 80,
+      animationDuration: 1200,
+      animationEasing: 'elasticOut',
+      animationDelay: (idx: number) => idx * 100,
       grid: { left: 120, right: 48, top: 16, bottom: 24, containLabel: false },
       xAxis: {
         type: 'value',
@@ -170,6 +178,11 @@ function BarChartTopDepartments({
             color: CHART_BAR_COLOR,
           },
           barMaxWidth: 24,
+          animationDelay: (idx: number) => idx * 100,
+          animationDuration: (idx: number) => 800 + idx * 50,
+          emphasis: {
+            itemStyle: { shadowBlur: 10, shadowColor: 'rgba(22, 163, 74, 0.4)' },
+          },
         },
       ],
       tooltip: {
@@ -207,39 +220,184 @@ function BarChartTopDepartments({
   return <div ref={containerRef} className="h-[260px] w-full min-w-0" />
 }
 
+/** Graphique en secteurs (pie) pour simple_data */
+function PieChartSimpleData({
+  simple,
+  loading,
+}: {
+  simple: DashboardApiResponse['simple_data'] | null | undefined
+  loading: boolean
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const chartRef = useRef<echarts.ECharts | null>(null)
+
+  const pieData = useMemo(() => {
+    if (!simple) return []
+    const { enStock, affectes, reparationsEnCours, totalMateriels } = simple
+    const reste = totalMateriels - enStock - affectes - reparationsEnCours
+    const items: Array<{ name: string; value: number }> = [
+      { name: 'En stock', value: enStock },
+      { name: 'Affectés', value: affectes },
+      { name: 'Réparations en cours', value: reparationsEnCours },
+      { name: 'Reste', value: reste >= 0 ? reste : 0 },
+    ]
+    return items
+  }, [simple])
+
+  useEffect(() => {
+    if (!containerRef.current) return
+    if (!chartRef.current) {
+      chartRef.current = echarts.init(containerRef.current)
+    }
+    const chart = chartRef.current
+
+    if (!pieData.length) {
+      chart.setOption({})
+      return
+    }
+
+    const totalMateriels = simple?.totalMateriels ?? pieData.reduce((s, d) => s + d.value, 0)
+    const allZero = pieData.every((d) => d.value === 0)
+
+    if (allZero) {
+      chart.setOption({
+        graphic: [
+          {
+            type: 'text',
+            left: 'center',
+            top: 'middle',
+            style: {
+              text: `Total matériels\n${totalMateriels}`,
+              fontSize: 16,
+              fontWeight: 'bold',
+              fill: '#374151',
+            },
+          },
+        ],
+      })
+      return
+    }
+
+    const option: EChartsOption = {
+      animation: true,
+      animationDuration: 1000,
+      animationEasing: 'cubicOut',
+      tooltip: {
+        trigger: 'item',
+        formatter: '{b}: <strong>{c}</strong> ({d}%)',
+      },
+      graphic: [
+        {
+          type: 'text',
+          left: 'center',
+          top: 'middle',
+          style: {
+            text: `Total matériels\n${totalMateriels}`,
+            fontSize: 14,
+            fontWeight: 'bold',
+            fill: '#374151',
+          },
+          z: 10,
+        },
+      ],
+      legend: {
+        orient: 'vertical',
+        right: 16,
+        top: 'center',
+        textStyle: { fontSize: 12 },
+      },
+      color: PIE_COLORS,
+      series: [
+        {
+          type: 'pie',
+          radius: ['40%', '70%'],
+          center: ['40%', '50%'],
+          avoidLabelOverlap: true,
+          minAngle: 3,
+          itemStyle: {
+            borderRadius: 6,
+            borderColor: '#fff',
+            borderWidth: 2,
+          },
+          label: {
+            show: true,
+            formatter: '{b}\n{c}',
+            fontSize: 11,
+          },
+          emphasis: {
+            label: { show: true, fontSize: 12 },
+            itemStyle: {
+              shadowBlur: 12,
+              shadowOffsetX: 0,
+              shadowColor: 'rgba(0,0,0,0.2)',
+            },
+          },
+          data: pieData,
+          animationType: 'scale',
+          animationEasing: 'elasticOut',
+          animationDelay: (idx: number) => idx * 120,
+        },
+      ],
+    }
+    chart.setOption(option)
+
+    const ro = new ResizeObserver(() => chart.resize())
+    ro.observe(containerRef.current)
+    return () => ro.disconnect()
+  }, [pieData, simple])
+
+  useEffect(() => {
+    return () => {
+      chartRef.current?.dispose()
+      chartRef.current = null
+    }
+  }, [])
+
+  if (loading || !simple) {
+    return (
+      <div className="flex h-[260px] items-center justify-center text-gray-500">
+        {loading ? 'Chargement…' : 'Aucune donnée.'}
+      </div>
+    )
+  }
+
+  return <div ref={containerRef} className="h-[260px] w-full min-w-0" />
+}
+
 export function DashboardPage() {
-  const [data, setData] = useState<DashboardStats | null>(null)
+  const [data, setData] = useState<DashboardApiResponse | null>(null)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    api<DashboardStats>('/api/dashboard')
+    setLoading(true)
+    setError(null)
+    get<DashboardApiResponse>(ENDPOINTS.dashboard)
       .then((d) => {
         if (!cancelled) setData(d)
       })
       .catch((e) => {
         if (!cancelled) setError(String(e?.message ?? e))
       })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
     return () => {
       cancelled = true
     }
   }, [])
 
-  const top = useMemo(() => data?.topDepartmentsIncidents ?? [], [data])
-  const totalAssets = useMemo(
-    () =>
-      data
-        ? Object.values(data.countsByStatus).reduce((a, b) => a + b, 0)
-        : 0,
+  const simple = data?.simple_data
+  const top = useMemo(
+    () => (data?.top_directions_pannes ?? []).map((d) => ({ department: d.direction, count: d.count })),
     [data],
   )
-  const statusEntries = useMemo(
-    () =>
-      data
-        ? Object.entries(data.countsByStatus).sort((a, b) => b[1] - a[1])
-        : [],
+  const statusEntries = useMemo<[string, number][]>(
+    () => (data?.repartition_par_etat ?? []).map((r) => [r.libelle, r.count]),
     [data],
   )
+  const synthese = data?.synthese_par_etat ?? []
 
   return (
     <div className="space-y-6">
@@ -249,13 +407,20 @@ export function DashboardPage() {
         <div className="flex flex-wrap items-center gap-2">
           <StatPill
             label="Total matériels"
-            value={totalAssets}
+            value={simple?.totalMateriels ?? '—'}
             active
           />
-          <StatPill label="En stock" value={data?.stockVsAssigned.enStock ?? '—'} />
-          <StatPill label="Affectés" value={data?.stockVsAssigned.affecte ?? '—'} />
-          <StatPill label="Réparations en cours" value={data?.repairsInProgress ?? '—'} />
+          <StatPill label="En stock" value={simple?.enStock ?? '—'} />
+          <StatPill label="Affectés" value={simple?.affectes ?? '—'} />
+          <StatPill label="Réparations en cours" value={simple?.reparationsEnCours ?? '—'} />
         </div>
+      </div>
+
+      {/* Pie chart — même infos que les pills */}
+      <div className="min-w-0">
+        <Card title="Répartition des matériels">
+          <PieChartSimpleData simple={simple} loading={loading && !data} />
+        </Card>
       </div>
 
       {error ? (
@@ -267,25 +432,23 @@ export function DashboardPage() {
       {/* Bande graphiques — grille adaptable : 1 col mobile, 2 cols desktop */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card title="Répartition par état">
-          <BarChartStatus statusEntries={statusEntries} loading={!data} />
+          <BarChartStatus statusEntries={statusEntries} loading={loading && !data} />
         </Card>
         <Card title="Top directions — pannes">
-          <BarChartTopDepartments top={top} loading={!data} />
+          <BarChartTopDepartments top={top} loading={loading && !data} />
         </Card>
       </div>
 
       {/* Bande tableau — pleine largeur */}
       <Card title="Synthèse par état">
         <Table columns={['État', 'Effectif']}>
-          {statusEntries.map(([status, count]) => (
-            <tr key={status} className="hover:bg-gray-50">
-              <td className="px-4 py-3 font-medium text-gray-900">
-                {status.replace(/_/g, ' ')}
-              </td>
-              <td className="px-4 py-3 text-gray-600">{count}</td>
+          {synthese.map((row) => (
+            <tr key={row.etat} className="hover:bg-gray-50">
+              <td className="px-4 py-3 font-medium text-gray-900">{row.libelle}</td>
+              <td className="px-4 py-3 text-gray-600">{row.count}</td>
             </tr>
           ))}
-          {!statusEntries.length ? (
+          {!synthese.length ? (
             <tr>
               <td className="px-4 py-8 text-center text-gray-500" colSpan={2}>
                 {data ? 'Aucune donnée.' : 'Chargement…'}

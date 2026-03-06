@@ -53,6 +53,19 @@ export type Repair = {
   updatedAt: string
 }
 
+/** Réparation telle que renvoyée par l’API détail matériel (GET /api/assets/:id) */
+export type RepairFromApi = {
+  id: number
+  incidentId: number
+  workshopEntryDate: string
+  action: string
+  cost: number | null
+  status: string
+  outcome: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export type HistoryEvent = {
   id: number
   assetId: number
@@ -73,4 +86,25 @@ export type DashboardStats = {
   stockVsAssigned: { enStock: number; affecte: number }
   topDepartmentsIncidents: Array<{ department: string; count: number }>
   repairsInProgress: number
+}
+
+/** Réponse de l’API GET /api/dashboard (backend) */
+export type DashboardApiResponse = {
+  simple_data: {
+    totalMateriels: number
+    enStock: number
+    affectes: number
+    reparationsEnCours: number
+  }
+  repartition_par_etat: Array<{ etat: string; libelle: string; count: number }>
+  top_directions_pannes: Array<{ direction: string; count: number }>
+  synthese_par_etat: Array<{ etat: string; libelle: string; count: number }>
+}
+
+/** Réponse de l’API GET /api/assets/:id (détail + historique + incidents) */
+export type AssetDetailsApi = Asset & {
+  history: HistoryEvent[]
+  currentAssignment: Assignment | null
+  incidentsWithRepairs: (Incident & { repairs: RepairFromApi[] })[]
+  currentStatus: AssetStatus
 }

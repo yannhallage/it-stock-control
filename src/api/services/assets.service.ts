@@ -1,6 +1,7 @@
 import { ENDPOINTS } from '../endpoints'
 import { del, get, post } from '../http'
 import type { Asset, AssetStatus } from '../../types'
+import type { AssetDetailsApi } from '../../types'
 
 export type ListAssetsParams = {
   q?: string
@@ -29,6 +30,10 @@ export function listAssetsService(params: ListAssetsParams = {}): Promise<Asset[
   const path = query ? `${ENDPOINTS.assets.base}?${query}` : ENDPOINTS.assets.base
 
   return get<Asset[]>(path)
+}
+
+export function getAssetByIdService(id: number): Promise<AssetDetailsApi> {
+  return get<AssetDetailsApi>(`${ENDPOINTS.assets.base}/${id}`)
 }
 
 export function createAssetService(payload: AssetCreatePayload): Promise<Asset> {

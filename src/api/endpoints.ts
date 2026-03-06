@@ -34,11 +34,11 @@ export const ENDPOINTS = {
     // Atelier : réparations
     base: '/api/atelier/repairs',
   },
+  dashboard: '/api/dashboard',
 } as const
 
 
 export function buildUrl(path: string): string {
-  // Si le backend expose ses routes sous /api, adapter ici:
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
   return `${API_BASE_URL}${normalizedPath}`
 }

@@ -1,11 +1,29 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { api } from '../lib/api'
+import { ClipLoader } from 'react-spinners'
+import { getAssetByIdService } from '../api/services/assets.service'
 import { assetStatusLabel, formatDate } from '../lib/format'
-import type { Asset, Assignment, HistoryEvent, Incident, Repair } from '../types'
+import type { Assignment, HistoryEvent } from '../types'
+import type { AssetDetailsApi, RepairFromApi } from '../types'
 import { StatusBadge } from '../components/Badge'
-import { Button, Card, PageTitle, Table } from '../components/Ui'
+import { Button, Card, PageTitle } from '../components/Ui'
+
+function RepairBlock({ repair }: { repair: RepairFromApi }) {
+  return (
+    <div className="rounded border border-gray-200 bg-gray-50 p-2 text-xs">
+      <div className="flex items-center justify-between">
+        <span className="font-semibold">#{repair.id} — {repair.status}</span>
+        <span>
+          {formatDate(repair.workshopEntryDate)} → {repair.outcome ?? '—'}
+        </span>
+      </div>
+      <div className="mt-1">
+        Action: {repair.action} • Coût: {repair.cost != null ? repair.cost.toFixed(2) : '—'}
+      </div>
+    </div>
+  )
+}
 
 const HISTORY_TYPE_LABELS: Record<HistoryEvent['type'], string> = {
   ASSET_CREATED: 'Création du matériel',
@@ -82,12 +100,7 @@ function HistoryTimeline({ events }: { events: HistoryEvent[] }) {
   )
 }
 
-type AssetDetails = Asset & {
-  assignments: Assignment[]
-  incidents: (Incident & { repairs: Repair[] })[]
-  history: HistoryEvent[]
-  activeAssignment: Assignment | null
-}
+type AssetDetails = AssetDetailsApi
 
 export function AssetDetailsPage() {
   const { id } = useParams()
@@ -99,7 +112,7 @@ export function AssetDetailsPage() {
     if (!id) return
     setError(null)
     setLoading(true)
-    api<AssetDetails>(`/api/assets/${id}`)
+    getAssetByIdService(Number(id))
       .then(setData)
       .catch((e) => {
         const msg = String(e?.message ?? e)
@@ -127,8 +140,27 @@ export function AssetDetailsPage() {
 
   if (!data) {
     return (
-      <div className="py-12 text-center text-gray-500">
-        Chargement…
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Link
+            to="/assets"
+            className="text-sm text-[var(--color-link)] hover:underline"
+          >
+            ← Retour à la liste
+          </Link>
+        </div>
+        <Card>
+          <div className="asset-details-loading">
+            <ClipLoader
+              color="var(--color-primary)"
+              loading
+              size={48}
+              aria-label="Chargement du matériel"
+            />
+            {/* <p className="text-sm font-medium text-slate-600">Chargement du matériel…</p> */}
+            <p className="text-xs text-slate-500">Récupération de l’historique et des incidents</p>
+          </div>
+        </Card>
       </div>
     )
   }
@@ -159,10 +191,10 @@ export function AssetDetailsPage() {
       </div>
 
       <Card title="Affectation actuelle">
-        {data.activeAssignment ? (
+        {data.currentAssignment ? (
           <div className="text-sm text-slate-900">
-            <b>{data.activeAssignment.department}</b> — {formatAssignmentUser(data.activeAssignment.user)} (depuis{' '}
-            {formatDate(data.activeAssignment.startDate)})
+            <b>{data.currentAssignment.department}</b> — {formatAssignmentUser(data.currentAssignment.user)} (depuis{' '}
+            {formatDate(data.currentAssignment.startDate)})
           </div>
         ) : (
           <div className="text-sm text-slate-600">Aucune affectation active.</div>
@@ -170,35 +202,13 @@ export function AssetDetailsPage() {
       </Card>
 
       <Card title="Historique (mouvements + états + réparations)">
-        <HistoryTimeline events={data.history.slice(0, 10)} />
+        <HistoryTimeline events={data.history} />
       </Card>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card title="Affectations (historique)">
-          <Table columns={['Direction', 'Utilisateur', 'Début', 'Fin']}>
-            {data.assignments.map((a) => (
-              <tr key={a.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 text-gray-600">{a.department}</td>
-                <td className="px-4 py-3 text-gray-600">{formatAssignmentUser(a.user)}</td>
-                <td className="px-4 py-3 text-gray-600">{formatDate(a.startDate)}</td>
-                <td className="px-4 py-3 text-gray-600">
-                  {a.endDate ? formatDate(a.endDate) : '—'}
-                </td>
-              </tr>
-            ))}
-            {!data.assignments.length ? (
-              <tr>
-                <td className="border-b border-slate-100 px-3 py-6 text-slate-600" colSpan={4}>
-                  —
-                </td>
-              </tr>
-            ) : null}
-          </Table>
-        </Card>
-
         <Card title="Incidents & réparations">
           <div className="space-y-3">
-            {data.incidents.map((i) => (
+            {data.incidentsWithRepairs.map((i) => (
               <div key={i.id} className="rounded-lg border border-gray-200 bg-white p-3">
                 <div className="flex items-center justify-between text-sm">
                   <div className="font-semibold text-slate-900">Incident #{i.id}</div>
@@ -213,17 +223,7 @@ export function AssetDetailsPage() {
                   <div className="text-xs font-semibold text-slate-900">Réparations</div>
                   <div className="mt-2 space-y-2">
                     {i.repairs.map((r) => (
-                      <div key={r.id} className="rounded border border-gray-200 bg-gray-50 p-2 text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold">#{r.id} — {r.status}</span>
-                          <span>
-                            {formatDate(r.workshopIn)} → {r.workshopOut ? formatDate(r.workshopOut) : '—'}
-                          </span>
-                        </div>
-                        <div className="mt-1">
-                          Action: {r.action} • Coût: {r.cost.toFixed(2)}
-                        </div>
-                      </div>
+                      <RepairBlock key={r.id} repair={r} />
                     ))}
                     {!i.repairs.length ? (
                       <div className="text-xs text-slate-600">—</div>
@@ -232,14 +232,14 @@ export function AssetDetailsPage() {
                 </div>
               </div>
             ))}
-            {!data.incidents.length ? <div className="text-sm text-slate-600">—</div> : null}
+            {!data.incidentsWithRepairs.length ? <div className="text-sm text-slate-600">—</div> : null}
           </div>
         </Card>
       </div>
 
       <Card title="État actuel">
         <div className="text-sm text-slate-900">
-          {assetStatusLabel(data.status)} (<span className="text-slate-600">{data.status}</span>)
+          {assetStatusLabel(data.currentStatus)} (<span className="text-slate-600">{data.currentStatus}</span>)
         </div>
       </Card>
 
