@@ -99,6 +99,7 @@ export type DashboardApiResponse = {
   repartition_par_etat: Array<{ etat: string; libelle: string; count: number }>
   top_directions_pannes: Array<{ direction: string; count: number }>
   synthese_par_etat: Array<{ etat: string; libelle: string; count: number }>
+  materiels_par_type: Array<{ type: string; count: number }>
 }
 
 /** Réponse de l’API GET /api/assets/:id (détail + historique + incidents) */
