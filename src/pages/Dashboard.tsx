@@ -59,9 +59,9 @@ function BarChartStatus({
 
     const option: EChartsOption = {
       animation: true,
-      animationDuration: 1200,
+      animationDuration: 1500,
       animationEasing: 'elasticOut',
-      animationDelay: (idx: number) => idx * 100,
+      animationDelay: (idx: number) => idx * 120,
       grid: { left: 48, right: 24, top: 16, bottom: 48, containLabel: false },
       xAxis: {
         type: 'category',
@@ -85,8 +85,8 @@ function BarChartStatus({
             color: CHART_BAR_COLOR,
           },
           barMaxWidth: 48,
-          animationDelay: (idx: number) => idx * 100,
-          animationDuration: (idx: number) => 800 + idx * 50,
+          animationDelay: (idx: number) => idx * 120,
+          animationDuration: (idx: number) => 1000 + idx * 80,
           emphasis: {
             itemStyle: { shadowBlur: 10, shadowColor: 'rgba(22, 163, 74, 0.4)' },
           },
@@ -152,9 +152,9 @@ function BarChartTopDepartments({
 
     const option: EChartsOption = {
       animation: true,
-      animationDuration: 1200,
+      animationDuration: 1500,
       animationEasing: 'elasticOut',
-      animationDelay: (idx: number) => idx * 100,
+      animationDelay: (idx: number) => idx * 120,
       grid: { left: 120, right: 48, top: 16, bottom: 24, containLabel: false },
       xAxis: {
         type: 'value',
@@ -178,8 +178,8 @@ function BarChartTopDepartments({
             color: CHART_BAR_COLOR,
           },
           barMaxWidth: 24,
-          animationDelay: (idx: number) => idx * 100,
-          animationDuration: (idx: number) => 800 + idx * 50,
+          animationDelay: (idx: number) => idx * 120,
+          animationDuration: (idx: number) => 1000 + idx * 80,
           emphasis: {
             itemStyle: { shadowBlur: 10, shadowColor: 'rgba(22, 163, 74, 0.4)' },
           },
@@ -243,8 +243,9 @@ function LineChartMaterielsParType({
 
     const option: EChartsOption = {
       animation: true,
-      animationDuration: 1000,
+      animationDuration: 1400,
       animationEasing: 'cubicOut',
+      animationDelay: (idx: number) => idx * 150,
       grid: { left: 48, right: 24, top: 24, bottom: 48, containLabel: false },
       xAxis: {
         type: 'category',
@@ -270,6 +271,9 @@ function LineChartMaterielsParType({
           symbolSize: 10,
           lineStyle: { width: 2, color: CHART_BAR_COLOR },
           itemStyle: { color: CHART_BAR_COLOR, borderColor: '#fff', borderWidth: 2 },
+          animationDelay: (idx: number) => idx * 150,
+          animationDuration: 1400,
+          animationEasing: 'cubicOut',
           areaStyle: {
             color: {
               type: 'linear',
@@ -437,7 +441,8 @@ function PieChartSimpleData({
           data: pieData,
           animationType: 'scale',
           animationEasing: 'elasticOut',
-          animationDelay: (idx: number) => idx * 120,
+          animationDuration: (idx: number) => 800 + idx * 100,
+          animationDelay: (idx: number) => idx * 150,
         },
       ],
     }
@@ -520,7 +525,7 @@ export function DashboardPage() {
       </div>
 
       {/* Pie chart — même infos que les pills */}
-      <div className="min-w-0">
+      <div className="min-w-0 chart-card-enter" style={{ animationDelay: '0.05s' }}>
         <Card title="Répartition des matériels">
           <PieChartSimpleData simple={simple} loading={loading && !data} />
         </Card>
@@ -534,13 +539,17 @@ export function DashboardPage() {
 
       {/* Bande graphiques — grille adaptable : 1 col mobile, 2 cols desktop */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card title="Répartition par état">
-          <BarChartStatus statusEntries={statusEntries} loading={loading && !data} />
-        </Card>
-        <Card title="Top directions — pannes">
-          <BarChartTopDepartments top={top} loading={loading && !data} />
-        </Card>
-        <div className="lg:col-span-2">
+        <div className="chart-card-enter" style={{ animationDelay: '0.15s' }}>
+          <Card title="Répartition par état">
+            <BarChartStatus statusEntries={statusEntries} loading={loading && !data} />
+          </Card>
+        </div>
+        <div className="chart-card-enter" style={{ animationDelay: '0.25s' }}>
+          <Card title="Top directions — pannes">
+            <BarChartTopDepartments top={top} loading={loading && !data} />
+          </Card>
+        </div>
+        <div className="lg:col-span-2 chart-card-enter" style={{ animationDelay: '0.35s' }}>
           <Card title="Matériels par type">
             <LineChartMaterielsParType materielsParType={materielsParType} loading={loading && !data} />
           </Card>
@@ -548,7 +557,8 @@ export function DashboardPage() {
       </div>
 
       {/* Bande tableau — pleine largeur */}
-      <Card title="Synthèse par état">
+      <div className="chart-card-enter" style={{ animationDelay: '0.45s' }}>
+        <Card title="Synthèse par état">
         <Table columns={['État', 'Effectif']}>
           {synthese.map((row) => (
             <tr key={row.etat} className="hover:bg-gray-50">
@@ -565,6 +575,7 @@ export function DashboardPage() {
           ) : null}
         </Table>
       </Card>
+      </div>
     </div>
   )
 }

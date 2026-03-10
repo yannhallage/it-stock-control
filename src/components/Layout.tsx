@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { clearSession, getSession } from '../lib/auth'
@@ -174,11 +174,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const navigate = useNavigate()
   const session = getSession()
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   const handleLogout = () => {
+    setShowLogoutModal(false)
     clearSession()
     navigate('/login', { replace: true })
   }
+
+  const openLogoutModal = () => setShowLogoutModal(true)
+  const closeLogoutModal = () => setShowLogoutModal(false)
+
+  useEffect(() => {
+    if (showLogoutModal) {
+      const prev = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      return () => {
+        document.body.style.overflow = prev
+      }
+    }
+  }, [showLogoutModal])
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/'
@@ -225,7 +240,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             ) : null}
             <button
               type="button"
-              onClick={handleLogout}
+              onClick={openLogoutModal}
               className="rounded p-2 cursor-pointer text-gray-500 hover:bg-gray-100 hover:text-gray-700"
             >
               <Tooltip text="Déconnexion">
@@ -282,6 +297,47 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         <main className="flex-1 overflow-auto bg-[#fafafa] p-6">{children}</main>
       </div>
+
+      {/* Modal d'avertissement déconnexion */}
+      {showLogoutModal &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-modal-title"
+            onClick={closeLogoutModal}
+          >
+            <div
+              className="max-w-sm bg-white p-6 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 id="logout-modal-title" className="text-lg font-semibold text-gray-900">
+                Déconnexion
+              </h2>
+              <p className="mt-2 text-sm text-gray-600">
+                Êtes-vous sûr de vouloir vous déconnecter ?
+              </p>
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={closeLogoutModal}
+                  className="rounded-md  cursor-pointer border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="rounded-md cursor-pointer bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                >
+                  Se déconnecter
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   )
 }
