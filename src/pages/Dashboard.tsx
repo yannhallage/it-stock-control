@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
+import {
+  RiInboxArchiveLine,
+  RiStackLine,
+  RiToolsLine,
+  RiUserSharedLine,
+} from '@remixicon/react'
 import { get } from '../api/http'
 import { ENDPOINTS } from '../api/endpoints'
 import type { DashboardApiResponse } from '../types'
@@ -11,29 +18,83 @@ const CHART_BAR_COLOR = '#16a34a'
 
 const PIE_COLORS = ['#16a34a', '#2563eb', '#ea580c', '#6b7280']
 
-function StatPill({
-  label,
+/** Carte indicateur type dashboard (icône, titre caps, valeur, badge optionnel, sous-texte) */
+function StatCard({
+  title,
   value,
-  active,
+  footer,
+  iconBoxClass,
+  iconClass,
+  icon,
+  badge,
 }: {
-  label: string
+  title: string
   value: number | string
-  active?: boolean
+  footer: string
+  iconBoxClass: string
+  iconClass: string
+  icon: ReactNode
+  badge?: { text: string; variant: 'up' | 'down' | 'neutral' } | null
 }) {
+  const display =
+    typeof value === 'number' ? value.toLocaleString('fr-FR') : String(value)
+
+  const badgeClass =
+    badge?.variant === 'up'
+      ? 'bg-emerald-50 text-emerald-700'
+      : badge?.variant === 'down'
+        ? 'bg-rose-50 text-rose-700'
+        : 'bg-slate-100 text-slate-600'
+
   return (
-    <span
-      className={
-        active
-          ? 'inline-flex items-center gap-2 bg-[var(--color-pill-active)] px-3 py-1.5 text-sm font-medium text-[var(--color-pill-active-text)]'
-          : 'inline-flex items-center gap-2 bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700'
-      }
-    >
-      {active ? (
-        <span className="h-2 w-2 bg-emerald-500" />
-      ) : null}
-      {label} {value}
-    </span>
+    <div className="flex min-w-0 gap-4  border border-gray-100 bg-white p-5 shadow-sm">
+      <div
+        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${iconBoxClass}`}
+      >
+        <span className={iconClass}>{icon}</span>
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+          {title}
+        </p>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <span className="text-2xl font-bold tracking-tight text-gray-900">
+            {display}
+          </span>
+          {badge ? (
+            <span
+              className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${badgeClass}`}
+            >
+              {badge.variant === 'up' || badge.variant === 'down' ? (
+                <span className="text-[10px] leading-none" aria-hidden>
+                  {badge.variant === 'up' ? '▲' : '▼'}
+                </span>
+              ) : null}
+              {badge.text}
+            </span>
+          ) : null}
+        </div>
+        <p className="mt-1.5 text-sm text-gray-500">{footer}</p>
+      </div>
+    </div>
   )
+}
+
+function shareOfTotalPct(part: number, total: number): number | null {
+  if (total <= 0 || !Number.isFinite(part) || !Number.isFinite(total)) return null
+  return Math.round((part / total) * 1000) / 10
+}
+
+function shareBadge(
+  part: number,
+  total: number,
+): { text: string; variant: 'neutral' } | null {
+  const pct = shareOfTotalPct(part, total)
+  if (pct == null) return null
+  return {
+    text: `${pct.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} % du parc`,
+    variant: 'neutral',
+  }
 }
 
 /** Graphique à barres ECharts responsive (barres verticales) */
@@ -509,22 +570,57 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Bande titre + indicateurs — adaptable */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Bande titre + cartes indicateurs */}
+      <div className="space-y-4">
         <PageTitle>Résultats</PageTitle>
-        <div className="flex flex-wrap items-center gap-2">
-          <StatPill
-            label="Total matériels"
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            title="Total matériels"
             value={simple?.totalMateriels ?? '—'}
-            active
+            footer="Inventaire référencé"
+            iconBoxClass="bg-slate-100"
+            iconClass="text-slate-600 [&>svg]:h-6 [&>svg]:w-6"
+            icon={<RiStackLine />}
           />
-          <StatPill label="En stock" value={simple?.enStock ?? '—'} />
-          <StatPill label="Affectés" value={simple?.affectes ?? '—'} />
-          <StatPill label="Réparations en cours" value={simple?.reparationsEnCours ?? '—'} />
+          <StatCard
+            title="En stock"
+            value={simple?.enStock ?? '—'}
+            footer="Disponibles actuellement"
+            iconBoxClass="bg-sky-100"
+            iconClass="text-sky-600 [&>svg]:h-6 [&>svg]:w-6"
+            icon={<RiInboxArchiveLine />}
+            badge={
+              simple ? shareBadge(simple.enStock, simple.totalMateriels) : null
+            }
+          />
+          <StatCard
+            title="Affectés"
+            value={simple?.affectes ?? '—'}
+            footer="Matériels assignés"
+            iconBoxClass="bg-amber-100"
+            iconClass="text-amber-700 [&>svg]:h-6 [&>svg]:w-6"
+            icon={<RiUserSharedLine />}
+            badge={
+              simple ? shareBadge(simple.affectes, simple.totalMateriels) : null
+            }
+          />
+          <StatCard
+            title="Réparations en cours"
+            value={simple?.reparationsEnCours ?? '—'}
+            footer="En cours de traitement"
+            iconBoxClass="bg-orange-100"
+            iconClass="text-orange-700 [&>svg]:h-6 [&>svg]:w-6"
+            icon={<RiToolsLine />}
+            badge={
+              simple
+                ? shareBadge(simple.reparationsEnCours, simple.totalMateriels)
+                : null
+            }
+          />
         </div>
       </div>
 
-      {/* Pie chart — même infos que les pills */}
+      {/* Pie chart — même infos que les cartes */}
       <div className="min-w-0 chart-card-enter" style={{ animationDelay: '0.05s' }}>
         <Card title="Répartition des matériels">
           <PieChartSimpleData simple={simple} loading={loading && !data} />

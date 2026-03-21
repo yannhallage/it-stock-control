@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
-import { Button, Input } from '../components/Ui'
+import { Button, Input, Table } from '../components/Ui'
 import { useSuppliers } from '../api/hooks/useSuppliers'
 import type { Supplier } from '../api/services/suppliers.service'
 
@@ -53,6 +53,22 @@ function TrashIcon({ className }: { className?: string }) {
   )
 }
 
+function ViewCardsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+    </svg>
+  )
+}
+
+function ViewTableIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    </svg>
+  )
+}
+
 export function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -62,6 +78,7 @@ export function SuppliersPage() {
   const [name, setName] = useState('')
   const [contact, setContact] = useState('')
   const [address, setAddress] = useState('')
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
 
   const { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier, loading, error: apiError } = useSuppliers()
 
@@ -177,44 +194,141 @@ export function SuppliersPage() {
             className="w-full border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[var(--color-primary)] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
           />
         </div>
-        <Button
-          type="button"
-          variant="primary"
-          onClick={openAdd}
-          className="inline-flex items-center cursor-pointer gap-2 px-4 py-2.5"
-          disabled={loading}
-        >
-          <PlusIcon className="h-5 w-5" />
-          Ajouter un fournisseur
-        </Button>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div
+            className="inline-flex rounded border border-gray-200 bg-gray-50 p-0.5"
+            role="group"
+            aria-label="Mode d’affichage"
+          >
+            <button
+              type="button"
+              onClick={() => setViewMode('cards')}
+              className={[
+                'inline-flex items-center gap-1.5 rounded px-3 py-2 text-sm font-medium transition-colors',
+                viewMode === 'cards'
+                  ? 'bg-white text-[var(--color-primary)] shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900',
+              ].join(' ')}
+              aria-pressed={viewMode === 'cards'}
+              title="Vue cartes"
+            >
+              <ViewCardsIcon className="h-5 w-5" />
+              Cartes
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={[
+                'inline-flex items-center gap-1.5 rounded px-3 py-2 text-sm font-medium transition-colors',
+                viewMode === 'table'
+                  ? 'bg-white text-[var(--color-primary)] shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900',
+              ].join(' ')}
+              aria-pressed={viewMode === 'table'}
+              title="Vue tableau"
+            >
+              <ViewTableIcon className="h-5 w-5" />
+              Tableau
+            </button>
+          </div>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={openAdd}
+            className="inline-flex items-center cursor-pointer gap-2 px-4 py-2.5"
+            disabled={loading}
+          >
+            <PlusIcon className="h-5 w-5" />
+            Ajouter un fournisseur
+          </Button>
+        </div>
       </div>
 
-      {/* Grille de cartes */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredSuppliers.map((s) => (
-          <article
-            key={s.id}
-            className="relative flex border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="mb-3 flex items-start gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-emerald-50 text-[var(--color-primary)]">
-                  <BuildingIcon className="h-7 w-7" />
-                </div>
+      {viewMode === 'cards' ? (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredSuppliers.map((s) => (
+              <article
+                key={s.id}
+                className="relative flex border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+              >
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-base font-semibold text-gray-900">{s.name}</h3>
-                  {s.address ? (
-                    <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-600">
-                      <LocationIcon className="h-4 w-4 shrink-0 text-gray-400" />
-                      <span className="truncate">{s.address}</span>
-                    </p>
+                  <div className="mb-3 flex items-start gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-emerald-50 text-[var(--color-primary)]">
+                      <BuildingIcon className="h-7 w-7" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-base font-semibold text-gray-900">{s.name}</h3>
+                      {s.address ? (
+                        <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-600">
+                          <LocationIcon className="h-4 w-4 shrink-0 text-gray-400" />
+                          <span className="truncate">{s.address}</span>
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(s)}
+                        className="p-1.5 text-gray-500 cursor-pointer  hover:bg-gray-100 hover:text-gray-700 disabled:pointer-events-none disabled:opacity-50"
+                        aria-label="Modifier"
+                        disabled={loading}
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(s.id)}
+                        className="p-1.5 text-red-500 cursor-pointer hover:bg-red-50 hover:text-red-600 disabled:pointer-events-none disabled:opacity-50"
+                        aria-label="Supprimer"
+                        disabled={loading}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  {s.contact ? (
+                    <p className="text-sm text-gray-500">{s.contact}</p>
                   ) : null}
+                  <p className="mt-2 text-sm font-medium text-[var(--color-primary)]">
+                    {s.contact ? '1 contact' : 'Aucun contact'}
+                  </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
+              </article>
+            ))}
+          </div>
+
+          {filteredSuppliers.length === 0 && (
+            <div className="border border-gray-200 bg-white py-16 text-center">
+              {suppliers.length === 0 && loading ? (
+                <p className="text-gray-500">Chargement…</p>
+              ) : (
+                <p className="text-gray-500">
+                  {suppliers.length === 0
+                    ? 'Aucun fournisseur. Cliquez sur « Ajouter un fournisseur » pour commencer.'
+                    : 'Aucun résultat pour cette recherche.'}
+                </p>
+              )}
+            </div>
+          )}
+        </>
+      ) : (
+        <Table columns={['Nom', 'Adresse', 'Contact', 'Actions']}>
+          {filteredSuppliers.map((s) => (
+            <tr key={s.id} className="hover:bg-gray-50">
+              <td className="px-4 py-3 font-medium text-gray-900">{s.name}</td>
+              <td className="px-4 py-3 text-gray-600">
+                {s.address || <span className="text-gray-400">—</span>}
+              </td>
+              <td className="px-4 py-3 text-gray-600">
+                {s.contact || <span className="text-gray-400">—</span>}
+              </td>
+              <td className="px-4 py-3 text-right">
+                <div className="inline-flex items-center gap-1">
                   <button
                     type="button"
                     onClick={() => openEdit(s)}
-                    className="p-1.5 text-gray-500 cursor-pointer  hover:bg-gray-100 hover:text-gray-700 disabled:pointer-events-none disabled:opacity-50"
+                    className="p-1.5 text-gray-500 cursor-pointer hover:bg-gray-100 hover:text-gray-700 disabled:pointer-events-none disabled:opacity-50"
                     aria-label="Modifier"
                     disabled={loading}
                   >
@@ -230,30 +344,23 @@ export function SuppliersPage() {
                     <TrashIcon className="h-4 w-4" />
                   </button>
                 </div>
-              </div>
-              {s.contact ? (
-                <p className="text-sm text-gray-500">{s.contact}</p>
-              ) : null}
-              <p className="mt-2 text-sm font-medium text-[var(--color-primary)]">
-                {s.contact ? '1 contact' : 'Aucun contact'}
-              </p>
-            </div>
-          </article>
-        ))}
-      </div>
-
-      {filteredSuppliers.length === 0 && (
-        <div className="border border-gray-200 bg-white py-16 text-center">
-          {suppliers.length === 0 && loading ? (
-            <p className="text-gray-500">Chargement…</p>
-          ) : (
-            <p className="text-gray-500">
-              {suppliers.length === 0
-                ? 'Aucun fournisseur. Cliquez sur « Ajouter un fournisseur » pour commencer.'
-                : 'Aucun résultat pour cette recherche.'}
-            </p>
+              </td>
+            </tr>
+          ))}
+          {filteredSuppliers.length === 0 && (
+            <tr>
+              <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                {suppliers.length === 0 && loading ? (
+                  'Chargement…'
+                ) : suppliers.length === 0 ? (
+                  'Aucun fournisseur. Cliquez sur « Ajouter un fournisseur » pour commencer.'
+                ) : (
+                  'Aucun résultat pour cette recherche.'
+                )}
+              </td>
+            </tr>
           )}
-        </div>
+        </Table>
       )}
 
       {/* Modal formulaire */}
