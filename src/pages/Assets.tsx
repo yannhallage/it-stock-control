@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
@@ -32,11 +32,54 @@ const statusOptions: Array<{ value: AssetStatus | ''; label: string }> = [
   { value: 'HORS_SERVICE', label: 'Hors Service' },
 ]
 
-function generateInventoryNumber(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  let s = 'INV-'
-  for (let i = 0; i < 8; i++) s += chars[Math.floor(Math.random() * chars.length)]
-  return s
+/** Préfixe court (max 4 car.) dérivé du libellé du type de matériel. */
+function materialTypePrefix(typeName: string): string {
+  const t = typeName.trim()
+  if (!t) return 'MAT'
+  const parts = t.split(/\s+/).filter(Boolean)
+  if (parts.length >= 2) {
+    return parts
+      .slice(0, 4)
+      .map((p) => {
+        const c = p.charAt(0)
+        const u = c
+          .normalize('NFD')
+          .replace(/\p{M}/gu, '')
+          .toUpperCase()
+        return /^[A-Z0-9]$/u.test(u) ? u : 'X'
+      })
+      .join('')
+  }
+  const ascii = parts[0]
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+  return (ascii.slice(0, 4) || 'MAT')
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** Prochain numéro du type `PC0002`, `PC00303` (préfixe + suite numérique). */
+function nextSequentialInventoryNumber(materialType: string, assets: Asset[]): string {
+  const prefix = materialTypePrefix(materialType)
+  const re = new RegExp(`^${escapeRegex(prefix)}(\\d+)$`, 'i')
+  let max = 0
+  let maxWidth = 4
+  for (const a of assets) {
+    const m = a.inventoryNumber.match(re)
+    if (m) {
+      const digits = m[1]
+      maxWidth = Math.max(maxWidth, digits.length)
+      const n = parseInt(digits, 10)
+      if (!Number.isNaN(n) && n > max) max = n
+    }
+  }
+  const next = max + 1
+  const padded = String(next).padStart(Math.max(maxWidth, String(next).length), '0')
+  return `${prefix}${padded}`
 }
 
 export function AssetsPage() {
@@ -49,8 +92,10 @@ export function AssetsPage() {
   const [type, setType] = useState('')
   const [status, setStatus] = useState<AssetStatus | ''>('')
 
+  const [allAssets, setAllAssets] = useState<Asset[]>([])
+
   const [form, setForm] = useState<AssetCreateInput>(() => ({
-    inventoryNumber: generateInventoryNumber(),
+    inventoryNumber: nextSequentialInventoryNumber('PC', []),
     type: 'PC',
     brand: '',
     model: '',
@@ -64,6 +109,12 @@ export function AssetsPage() {
   const { fetchAssets, createAsset, deleteAsset, loading, error: apiError } = useAssets()
   const { fetchSuppliers } = useSuppliers()
   const { fetchMaterialTypes } = useMaterialTypes()
+
+  const loadAllForSeq = useCallback(async () => {
+    const assets = await fetchAssets({})
+    setAllAssets(assets)
+    return assets
+  }, [fetchAssets])
 
   const types = useMemo(() => {
     const s = new Set(items.map((a) => a.type).filter(Boolean))
@@ -82,6 +133,10 @@ export function AssetsPage() {
 
   useEffect(() => {
     load()
+    loadAllForSeq().catch((e) => {
+      const msg = String(e?.message ?? e)
+      toast.error(msg || 'Erreur lors du chargement des matériels (séquence inventaire).')
+    })
     fetchSuppliers()
       .then(setSuppliers)
       .catch((e) => {
@@ -96,6 +151,13 @@ export function AssetsPage() {
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    setForm((f) => ({
+      ...f,
+      inventoryNumber: nextSequentialInventoryNumber(f.type, allAssets),
+    }))
+  }, [allAssets])
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -137,9 +199,10 @@ export function AssetsPage() {
     try {
       await createAsset(trimmedForm)
       toast.success('Matériel ajouté avec succès.')
+      const fresh = await loadAllForSeq()
       setForm((f) => ({
         ...f,
-        inventoryNumber: generateInventoryNumber(),
+        inventoryNumber: nextSequentialInventoryNumber(f.type, fresh),
         brand: '',
         model: '',
         supplier: '',
@@ -160,6 +223,7 @@ export function AssetsPage() {
       await deleteAsset(assetToDelete)
       toast.success('Matériel supprimé.')
       setAssetToDelete(null)
+      await loadAllForSeq()
       load()
     } catch (err: unknown) {
       const msg = String((err as Error)?.message ?? err)
@@ -191,7 +255,17 @@ export function AssetsPage() {
       </ConfirmModal>
       <div className="flex items-center justify-between">
         <PageTitle>Gestion de Stock</PageTitle>
-        <Button onClick={load} disabled={loading} className="cursor-pointer flex items-center gap-2">
+        <Button
+          onClick={() => {
+            load()
+            loadAllForSeq().catch((e) => {
+              const msg = String(e?.message ?? e)
+              toast.error(msg || 'Erreur lors du chargement.')
+            })
+          }}
+          disabled={loading}
+          className="cursor-pointer flex items-center gap-2"
+        >
           Actualiser
         </Button>
       </div>
@@ -213,7 +287,14 @@ export function AssetsPage() {
           <Select
             label="Type (PC, Imprimante, etc.)"
             value={form.type}
-            onChange={(e) => setForm({ ...form, type: e.target.value })}
+            onChange={(e) => {
+              const nextType = e.target.value
+              setForm({
+                ...form,
+                type: nextType,
+                inventoryNumber: nextSequentialInventoryNumber(nextType, allAssets),
+              })
+            }}
           >
             <option value="">Sélectionner un type</option>
             {materialTypes.map((t) => (
@@ -262,7 +343,7 @@ export function AssetsPage() {
         <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4">
           <Input
             label="Recherche (inventaire, marque, modèle, fournisseur)"
-            placeholder="Ex: INV-001, HP, Lenovo…"
+            placeholder="Ex: PC0002, PC00303, HP…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />

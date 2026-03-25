@@ -281,112 +281,53 @@ function BarChartTopDepartments({
   return <div ref={containerRef} className="h-[260px] w-full min-w-0" />
 }
 
-/** Graphique en courbe (ligne) pour materiels_par_type */
-function LineChartMaterielsParType({
+const MATERIEL_TYPE_CARD_STYLES = [
+  { iconBoxClass: 'bg-slate-100', iconClass: 'text-slate-600' },
+  { iconBoxClass: 'bg-sky-100', iconClass: 'text-sky-600' },
+  { iconBoxClass: 'bg-amber-100', iconClass: 'text-amber-700' },
+  { iconBoxClass: 'bg-emerald-50', iconClass: 'text-emerald-700' },
+] as const
+
+/** Résultats matériels par type — cartes (même esprit que la bande Résultats) */
+function MaterielsParTypeCards({
   materielsParType,
   loading,
 }: {
   materielsParType: Array<{ type: string; count: number }>
   loading: boolean
 }) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const chartRef = useRef<echarts.ECharts | null>(null)
-
-  const labels = materielsParType.map((m) => m.type)
-  const values = materielsParType.map((m) => m.count)
-
-  useEffect(() => {
-    if (!containerRef.current || !labels.length) return
-    if (!chartRef.current) {
-      chartRef.current = echarts.init(containerRef.current)
-    }
-    const chart = chartRef.current
-
-    const option: EChartsOption = {
-      animation: true,
-      animationDuration: 1400,
-      animationEasing: 'cubicOut',
-      animationDelay: (idx: number) => idx * 150,
-      grid: { left: 48, right: 24, top: 24, bottom: 48, containLabel: false },
-      xAxis: {
-        type: 'category',
-        data: labels,
-        boundaryGap: true,
-        axisLabel: { rotate: labels.some((l) => l.length > 8) ? 25 : 0 },
-        axisLine: { lineStyle: { color: '#e5e7eb' } },
-        axisTick: { show: false },
-      },
-      yAxis: {
-        type: 'value',
-        minInterval: 1,
-        splitLine: { lineStyle: { color: '#e5e7eb' } },
-        axisLine: { show: false },
-        axisTick: { show: false },
-      },
-      series: [
-        {
-          type: 'line',
-          data: values,
-          smooth: true,
-          symbol: 'circle',
-          symbolSize: 10,
-          lineStyle: { width: 2, color: CHART_BAR_COLOR },
-          itemStyle: { color: CHART_BAR_COLOR, borderColor: '#fff', borderWidth: 2 },
-          animationDelay: (idx: number) => idx * 150,
-          animationDuration: 1400,
-          animationEasing: 'cubicOut',
-          areaStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: 'rgba(22, 163, 74, 0.35)' },
-                { offset: 1, color: 'rgba(22, 163, 74, 0.02)' },
-              ],
-            },
-          },
-          emphasis: {
-            focus: 'series',
-            itemStyle: { borderColor: CHART_BAR_COLOR, borderWidth: 2, shadowBlur: 8 },
-          },
-        },
-      ],
-      tooltip: {
-        trigger: 'axis',
-        formatter: (params: unknown) => {
-          const p = Array.isArray(params) ? params[0] : null
-          if (p && 'name' in p && 'value' in p)
-            return `${(p as { name: string; value: number }).name}<br/><strong>${(p as { name: string; value: number }).value}</strong> matériel(s)`
-          return ''
-        },
-      },
-    }
-    chart.setOption(option)
-
-    const ro = new ResizeObserver(() => chart.resize())
-    ro.observe(containerRef.current)
-    return () => ro.disconnect()
-  }, [materielsParType])
-
-  useEffect(() => {
-    return () => {
-      chartRef.current?.dispose()
-      chartRef.current = null
-    }
-  }, [])
+  const total = useMemo(
+    () => materielsParType.reduce((s, m) => s + m.count, 0),
+    [materielsParType],
+  )
 
   if (loading || !materielsParType.length) {
     return (
-      <div className="flex h-[260px] items-center justify-center text-gray-500">
+      <div className="flex min-h-[120px] items-center justify-center py-8 text-gray-500">
         {loading ? 'Chargement…' : 'Aucune donnée.'}
       </div>
     )
   }
 
-  return <div ref={containerRef} className="h-[260px] w-full min-w-0" />
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      {materielsParType.map((m, idx) => {
+        const style = MATERIEL_TYPE_CARD_STYLES[idx % MATERIEL_TYPE_CARD_STYLES.length]
+        return (
+          <StatCard
+            key={m.type}
+            title={m.type.replace(/_/g, ' ')}
+            value={m.count}
+            footer="Matériels de ce type"
+            iconBoxClass={style.iconBoxClass}
+            iconClass={`${style.iconClass} [&>svg]:h-6 [&>svg]:w-6`}
+            icon={<RiStackLine />}
+            badge={shareBadge(m.count, total)}
+          />
+        )
+      })}
+    </div>
+  )
 }
 function PieChartSimpleData({
   simple,
@@ -647,7 +588,7 @@ export function DashboardPage() {
         </div>
         <div className="lg:col-span-2 chart-card-enter" style={{ animationDelay: '0.35s' }}>
           <Card title="Matériels par type">
-            <LineChartMaterielsParType materielsParType={materielsParType} loading={loading && !data} />
+            <MaterielsParTypeCards materielsParType={materielsParType} loading={loading && !data} />
           </Card>
         </div>
       </div>
