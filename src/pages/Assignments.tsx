@@ -4,7 +4,7 @@ import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
 import { useAssignments } from '../api/hooks/useAssignments'
 import { formatDate } from '../lib/format'
-import type { Asset, AssetStatus, Assignment } from '../types'
+import type { Asset, Assignment } from '../types'
 import { StatusBadge } from '../components/Badge'
 import { Avatar, Button, Card, Input, PageTitle, Select, Table, Tooltip } from '../components/Ui'
 
@@ -19,6 +19,7 @@ export function AssignmentsPage() {
   const [department, setDepartment] = useState('')
   const [users, setUsers] = useState<string[]>([''])
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
+  const [statusFilter, setStatusFilter] = useState<'' | Asset['status']>('')
 
   const { fetchAssets, loading: assetsLoading } = useAssets()
   const {
@@ -32,8 +33,10 @@ export function AssignmentsPage() {
   const loading = assetsLoading || assignmentsLoading
 
   const assignable = useMemo(() => {
-    const blocked: AssetStatus[] = ['EN_PANNE', 'EN_REPARATION', 'HORS_SERVICE']
-    return items.filter((a) => !blocked.includes(a.status))
+    return items
+      .filter((a) => a.status === 'EN_STOCK')
+      .slice()
+      .sort((a, b) => a.inventoryNumber.localeCompare(b.inventoryNumber, 'fr', { numeric: true }))
   }, [items])
 
   function load() {
@@ -191,9 +194,29 @@ export function AssignmentsPage() {
       </Card>
 
       <Card title="Affectations actives">
+        <div className="mb-3 max-w-xs">
+          <Select
+            label="Filtrer par état"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as '' | Asset['status'])}
+          >
+            <option value="">Tous</option>
+            <option value="EN_STOCK">EN_STOCK</option>
+            <option value="AFFECTE">AFFECTE</option>
+            <option value="EN_SERVICE">EN_SERVICE</option>
+            <option value="EN_PANNE">EN_PANNE</option>
+            <option value="EN_REPARATION">EN_REPARATION</option>
+            <option value="HORS_SERVICE">HORS_SERVICE</option>
+          </Select>
+        </div>
         <Table columns={['Inventaire', 'Matériel', 'État', 'Direction', 'Utilisateur', 'Date affectation', 'Action']}>
           {assignments
             .filter((a) => !a.endDate)
+            .filter((a) => {
+              if (!statusFilter) return true
+              const asset = items.find((i) => i.id === a.assetId)
+              return asset?.status === statusFilter
+            })
             .map((a) => {
               const asset = items.find((i) => i.id === a.assetId)
               return (
@@ -255,7 +278,13 @@ export function AssignmentsPage() {
                 </tr>
               )
             })}
-          {!assignments.filter((a) => !a.endDate).length ? (
+          {!assignments
+            .filter((a) => !a.endDate)
+            .filter((a) => {
+              if (!statusFilter) return true
+              const asset = items.find((i) => i.id === a.assetId)
+              return asset?.status === statusFilter
+            }).length ? (
             <tr>
               <td className="px-4 py-8 text-center text-gray-500" colSpan={7}>
                 {loading ? 'Chargement…' : 'Aucune affectation active.'}
