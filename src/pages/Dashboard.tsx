@@ -480,14 +480,12 @@ export function DashboardPage() {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError(null)
     get<DashboardApiResponse>(ENDPOINTS.dashboard)
       .then((d) => {
         if (!cancelled) setData(d)
       })
-      .catch((e) => {
-        if (!cancelled) setError(String(e?.message ?? e))
+      .catch((e: unknown) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)

@@ -44,8 +44,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (!res.ok) {
     const message =
-      typeof responseBody === 'object' && responseBody && 'message' in responseBody
-        ? String((responseBody as any).message)
+      typeof responseBody === 'object' &&
+      responseBody !== null &&
+      'message' in responseBody &&
+      typeof (responseBody as { message: unknown }).message === 'string'
+        ? (responseBody as { message: string }).message
         : `Erreur API (${res.status})`
     throw new HttpError(message, res.status, responseBody)
   }

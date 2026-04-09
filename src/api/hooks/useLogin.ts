@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { errorMessageFromUnknown } from '../../lib/errors'
 import type { LoginRequest, LoginResponse } from '../services/auth.service'
 import { loginService } from '../services/auth.service'
 
@@ -18,8 +19,8 @@ export function useLogin(): UseLoginResult {
     try {
       const res = await loginService(payload)
       return res
-    } catch (e: any) {
-      const message = e?.message ?? "Échec de la connexion."
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, 'Échec de la connexion.')
       setError(String(message))
       throw e
     } finally {

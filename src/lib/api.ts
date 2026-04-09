@@ -46,7 +46,7 @@ function parseUrl(path: string) {
   return new URL(path, 'http://local')
 }
 
-function jsonBody(init?: RequestInit): any {
+function jsonBody(init?: RequestInit): unknown {
   const b = init?.body
   if (!b) return null
   if (typeof b === 'string') {
@@ -476,8 +476,9 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     }
 
     throw new ApiError('Endpoint non implémenté (mode seed)', 404, { method, path })
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e instanceof ApiError) throw e
-    throw new ApiError(String(e?.message ?? e), 500, { method, path })
+    const msg = e instanceof Error ? e.message : String(e)
+    throw new ApiError(msg, 500, { method, path })
   }
 }

@@ -5,6 +5,7 @@ import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
 import { useSuppliers } from '../api/hooks/useSuppliers'
 import { useMaterialTypes } from '../api/hooks/useMaterialTypes'
+import { errorMessageFromUnknown } from '../lib/errors'
 import { formatDate } from '../lib/format'
 import type { Asset, AssetStatus } from '../types'
 import type { Supplier } from '../api/services/suppliers.service'
@@ -208,8 +209,8 @@ export function AssetsPage() {
         supplier: '',
       }))
       load()
-    } catch (err: any) {
-      const msg = String(err?.message ?? err)
+    } catch (err: unknown) {
+      const msg = errorMessageFromUnknown(err, "Erreur lors de l'ajout du matériel.")
       setError(msg)
       toast.error(msg || "Erreur lors de l'ajout du matériel.")
     }

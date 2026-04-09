@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
 import { Button, Input, Table } from '../components/Ui'
+import { errorMessageFromUnknown } from '../lib/errors'
 import { useSuppliers } from '../api/hooks/useSuppliers'
 import type { Supplier } from '../api/services/suppliers.service'
 
@@ -152,10 +153,10 @@ export function SuppliersPage() {
         toast.success('Fournisseur ajouté avec succès.')
       }
       closeModal()
-    } catch (e: any) {
-      const msg = String(e?.message ?? e)
+    } catch (e: unknown) {
+      const msg = errorMessageFromUnknown(e, "Erreur lors de l'enregistrement du fournisseur.")
       setError(msg)
-      toast.error(msg || "Erreur lors de l'enregistrement du fournisseur.")
+      toast.error(msg)
     }
   }
 
@@ -166,10 +167,10 @@ export function SuppliersPage() {
         await deleteSupplier(id)
         setSuppliers((prev) => prev.filter((s) => s.id !== id))
         toast.success('Fournisseur supprimé.')
-      } catch (e: any) {
-        const msg = String(e?.message ?? e)
+      } catch (e: unknown) {
+        const msg = errorMessageFromUnknown(e, 'Erreur lors de la suppression du fournisseur.')
         setError(msg)
-        toast.error(msg || 'Erreur lors de la suppression du fournisseur.')
+        toast.error(msg)
       }
     }
   }

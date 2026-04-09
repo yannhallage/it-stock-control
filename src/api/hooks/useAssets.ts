@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { errorMessageFromUnknown } from '../../lib/errors'
 import type { Asset } from '../../types'
 import {
   createAssetService,
@@ -26,8 +27,8 @@ export function useAssets(): UseAssetsResult {
     try {
       const res = await listAssetsService(params ?? {})
       return res
-    } catch (e: any) {
-      const message = e?.message ?? 'Erreur lors du chargement des matériels.'
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, 'Erreur lors du chargement des matériels.')
       setError(String(message))
       throw e
     } finally {
@@ -40,8 +41,8 @@ export function useAssets(): UseAssetsResult {
     setError(null)
     try {
       return await createAssetService(payload)
-    } catch (e: any) {
-      const message = e?.message ?? "Erreur lors de l'ajout du matériel."
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, "Erreur lors de l'ajout du matériel.")
       setError(String(message))
       throw e
     } finally {
@@ -54,8 +55,8 @@ export function useAssets(): UseAssetsResult {
     setError(null)
     try {
       await deleteAssetService(id)
-    } catch (e: any) {
-      const message = e?.message ?? 'Erreur lors de la suppression du matériel.'
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, 'Erreur lors de la suppression du matériel.')
       setError(String(message))
       throw e
     } finally {
