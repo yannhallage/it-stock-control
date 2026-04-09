@@ -82,11 +82,19 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Binaire Trivy via setup-trivy v0.2.6 (version recommandée) ; trivy-action saute son install interne.
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@v0.2.6
+        with:
+          version: v0.69.3
+          cache: true
+
       # Scan de vulnérabilités sur l'image poussée ; exit-code 0 = informatif seulement.
       # Pour bloquer la CI sur les failles : exit-code: "1" + filtre severity selon la politique.
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@v0.28.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
+          skip-setup-trivy: "true"
           image-ref: ${{ secrets.DOCKER_USER }}/${{ env.IMAGE_NAME }}:latest
           exit-code: "0"
           format: table
