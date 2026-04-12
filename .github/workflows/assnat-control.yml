@@ -9,7 +9,7 @@ on:
 # Moindre privilège : le token du workflow ne peut que lire le dépôt.
 permissions:
   contents: read
-
+# Force l'utilisation de Node.js 24 pour les actions JavaScript.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 # Évite les courses : un nouveau push sur la même branche annule le run précédent.
