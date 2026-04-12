@@ -101,3 +101,6 @@ jobs:
           exit-code: "0"
           format: table
           vuln-type: os,library
+
+
+          # ICI, AJOUTER LES STEPS POUR LE BUILD DE L'IMAGE DOCKER
