@@ -10,13 +10,15 @@ on:
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 # Évite les courses : un nouveau push sur la même branche annule le run précédent.
 concurrency:
   group: assnat-control-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  # Nom du dépôt Docker Hub : <DOCKER_USER>/client
+  # Nom du dépôt Docker Hub : <DOCKER_USERNAME>/client
   IMAGE_NAME: assnat-control
 
 jobs:
@@ -58,15 +60,15 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USER }}
-          password: ${{ secrets.DOCKER_PASS }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       # Génère les tags (latest + sha du commit) et les labels OCI standard.
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKER_USER }}/${{ env.IMAGE_NAME }}
+          images: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest
             type=sha
@@ -95,7 +97,7 @@ jobs:
         uses: aquasecurity/trivy-action@v0.35.0
         with:
           skip-setup-trivy: "true"
-          image-ref: ${{ secrets.DOCKER_USER }}/${{ env.IMAGE_NAME }}:latest
+          image-ref: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
           exit-code: "0"
           format: table
           vuln-type: os,library
