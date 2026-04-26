@@ -258,6 +258,48 @@ function handlePostAssets(init?: RequestInit) {
   return asset
 }
 
+function handlePutAsset(assetId: number, init?: RequestInit) {
+  const asset = db.assets.find((a) => a.id === assetId)
+  if (!asset) throw new ApiError('Matériel introuvable', 404, { assetId })
+
+  const input = (jsonBody(init) ?? {}) as Partial<{
+    inventoryNumber: string
+    serialNumber: string
+    type: string
+    brand: string
+    model: string
+    entryDate: string
+    warrantyMonths: number
+    supplier: string
+  }>
+
+  if (!input.inventoryNumber || !input.type || !input.brand || !input.model || !input.entryDate || !input.supplier) {
+    throw new ApiError('Champs manquants', 400, input)
+  }
+
+  if (db.assets.some((a) => a.id !== assetId && a.inventoryNumber === input.inventoryNumber)) {
+    throw new ApiError("Numéro d'inventaire déjà utilisé", 409, { inventoryNumber: input.inventoryNumber })
+  }
+
+  const warrantyMonths = Number(input.warrantyMonths)
+  if (!Number.isFinite(warrantyMonths) || warrantyMonths <= 0) {
+    throw new ApiError('Délai de garantie invalide', 400, input)
+  }
+
+  asset.inventoryNumber = input.inventoryNumber
+  asset.serialNumber = input.serialNumber?.trim() || undefined
+  asset.type = input.type
+  asset.brand = input.brand
+  asset.model = input.model
+  asset.entryDate = input.entryDate
+  asset.warrantyMonths = warrantyMonths
+  asset.supplier = input.supplier
+  asset.updatedAt = nowIso()
+
+  pushHistory(assetId, 'ASSET_UPDATED', { inventoryNumber: asset.inventoryNumber })
+  return asset
+}
+
 function handlePostAssetAssignment(assetId: number, init?: RequestInit) {
   const asset = db.assets.find((a) => a.id === assetId)
   if (!asset) throw new ApiError('Matériel introuvable', 404, { assetId })
@@ -449,6 +491,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     {
       const m = pathname.match(/^\/api\/assets\/(\d+)$/)
       if (method === 'GET' && m) return clone(assetDetails(Number(m[1]))) as T
+      if (method === 'PUT' && m) return clone(handlePutAsset(Number(m[1]), init)) as T
       if (method === 'DELETE' && m) {
         handleDeleteAsset(Number(m[1]))
         return undefined as T

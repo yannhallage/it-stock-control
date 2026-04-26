@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from 'react-toastify'
 import { useIncidents } from '../../api/hooks/useIncidents'
 import { Button, Input, Textarea } from '../Ui'
@@ -95,11 +96,11 @@ export function IncidentDrawer({
 
   if (!mounted) return null
 
-  return (
-    <div className="fixed inset-0 z-50">
+  return createPortal(
+    <div className="fixed inset-0 z-50 min-h-screen min-h-[100dvh]">
       <button
         type="button"
-        className={`absolute inset-0 bg-black/40 transition-opacity duration-200 ${visible ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute inset-0 min-h-screen min-h-[100dvh] bg-black/40 transition-opacity duration-200 ${visible ? 'opacity-100' : 'opacity-0'}`}
         onClick={() => {
           if (!loading) onClose()
         }}
@@ -107,7 +108,7 @@ export function IncidentDrawer({
       />
 
       <aside
-        className={`absolute right-0 top-0 h-full w-full max-w-xl border-l border-gray-200 bg-white shadow-2xl transition-transform duration-200 ${
+        className={`absolute inset-y-0 right-0 flex w-full min-h-0 max-w-xl flex-col border-l border-gray-200 bg-white shadow-2xl transition-transform duration-200 ${
           visible ? 'translate-x-0' : 'translate-x-full'
         }`}
         aria-label="Déclarer une panne"
@@ -152,6 +153,7 @@ export function IncidentDrawer({
           </form>
         </div>
       </aside>
-    </div>
+    </div>,
+    document.body,
   )
 }

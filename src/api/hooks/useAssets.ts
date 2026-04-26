@@ -5,13 +5,16 @@ import {
   createAssetService,
   deleteAssetService,
   listAssetsService,
+  updateAssetService,
   type AssetCreatePayload,
+  type AssetUpdatePayload,
   type ListAssetsParams,
 } from '../services/assets.service'
 
 type UseAssetsResult = {
   fetchAssets: (params?: ListAssetsParams) => Promise<Asset[]>
   createAsset: (payload: AssetCreatePayload) => Promise<Asset>
+  updateAsset: (id: number, payload: AssetUpdatePayload) => Promise<Asset>
   deleteAsset: (id: number) => Promise<void>
   loading: boolean
   error: string | null
@@ -50,6 +53,20 @@ export function useAssets(): UseAssetsResult {
     }
   }, [])
 
+  const update = useCallback(async (id: number, payload: AssetUpdatePayload) => {
+    setLoading(true)
+    setError(null)
+    try {
+      return await updateAssetService(id, payload)
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, 'Erreur lors de la mise à jour du matériel.')
+      setError(String(message))
+      throw e
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   const remove = useCallback(async (id: number) => {
     setLoading(true)
     setError(null)
@@ -64,6 +81,6 @@ export function useAssets(): UseAssetsResult {
     }
   }, [])
 
-  return { fetchAssets, createAsset: create, deleteAsset: remove, loading, error }
+  return { fetchAssets, createAsset: create, updateAsset: update, deleteAsset: remove, loading, error }
 }
 

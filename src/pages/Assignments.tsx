@@ -7,7 +7,8 @@ import { useAssignments } from '../api/hooks/useAssignments'
 import { formatDate } from '../lib/format'
 import type { Asset, Assignment } from '../types'
 import { StatusBadge } from '../components/Badge'
-import { IncidentDrawer } from '../components/drawerPanne/IncidentDrawer'
+import { DrawerAssignments } from '../components/drawers/DrawerAssignments'
+import { IncidentDrawer } from '../components/drawers/IncidentDrawer'
 import { Avatar, Button, Card, Input, PageTitle, Select, Table, Tooltip } from '../components/Ui'
 
 type AssetRow = Asset & { activeAssignment?: Assignment | null }
@@ -31,6 +32,7 @@ export function AssignmentsPage() {
   const [statusFilter, setStatusFilter] = useState<'' | Asset['status']>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [incidentTarget, setIncidentTarget] = useState<IncidentDrawerTarget | null>(null)
+  const [assignmentDrawerOpen, setAssignmentDrawerOpen] = useState(false)
 
   const { fetchAssets, loading: assetsLoading } = useAssets()
   const {
@@ -103,6 +105,7 @@ export function AssignmentsPage() {
       setDepartment('')
       setUsers([''])
       setStartDate(new Date().toISOString().slice(0, 10))
+      setAssignmentDrawerOpen(false)
       load()
     } catch (err: unknown) {
       const msg = String(err instanceof Error ? err.message : err)
@@ -126,11 +129,22 @@ export function AssignmentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <PageTitle>Affectations</PageTitle>
-        <Button onClick={load} className="cursor-pointer flex items-center gap-2" disabled={loading}>
-          Actualiser
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="primary"
+            type="button"
+            onClick={() => setAssignmentDrawerOpen(true)}
+            className="cursor-pointer flex items-center gap-2"
+            disabled={loading}
+          >
+            Transférer / affecter
+          </Button>
+          <Button onClick={load} className="cursor-pointer flex items-center gap-2" disabled={loading}>
+            Actualiser
+          </Button>
+        </div>
       </div>
 
       {error ?? apiError ? (
@@ -139,81 +153,21 @@ export function AssignmentsPage() {
         </div>
       ) : null}
 
-      <Card title="Transférer un matériel du Stock vers une Direction">
-        <form className="grid grid-cols-1 gap-4 md:grid-cols-3" onSubmit={createAssignment}>
-          <Select
-            label="Matériel"
-            value={assetId}
-            onChange={(e) => setAssetId(e.target.value ? Number(e.target.value) : '')}
-          >
-            <option value="">Sélectionner…</option>
-            {assignable.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.inventoryNumber} — {a.type} — {a.brand} {a.model}
-              </option>
-            ))}
-          </Select>
-          <Input
-            label="Direction / Service"
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-          />
-          <Input
-            label="Date début"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-          <div className="space-y-2 md:col-span-3 max-w-md">
-            <div className="mb-1 text-xs font-medium text-gray-600">Utilisateurs</div>
-            {users.map((value, index) => (
-              <div key={index} className="flex gap-2 items-center">
-                <input
-                  className="min-w-0 flex-1 border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
-                  placeholder={index === 0 ? 'Nom de l\'utilisateur' : 'Autre utilisateur'}
-                  value={value}
-                  onChange={(e) => {
-                    const next = [...users]
-                    next[index] = e.target.value
-                    setUsers(next)
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="default"
-                  className="cursor-pointer shrink-0"
-                  onClick={() => {
-                    if (users.length <= 1) return
-                    setUsers(users.filter((_, i) => i !== index))
-                  }}
-                  disabled={users.length <= 1}
-                  title="Supprimer"
-                >
-                  −
-                </Button>
-              </div>
-            ))}
-            <div className="flex justify-end pt-1">
-              <Button
-                type="button"
-                variant="default"
-                className="cursor-pointer text-sm"
-                onClick={() => setUsers([...users, ''])}
-              >
-                + Ajouter un utilisateur
-              </Button>
-            </div>
-          </div>
-          <div className="md:col-span-3">
-            <Button type="submit" className="cursor-pointer flex items-center gap-2" variant="primary" disabled={loading}>
-              Affecter / transférer
-            </Button>
-          </div>
-        </form>
-        <div className="mt-3 text-xs text-slate-600">
-          Une nouvelle affectation clôt automatiquement l'affectation active précédente (si existante).
-        </div>
-      </Card>
+      <DrawerAssignments
+        isOpen={assignmentDrawerOpen}
+        onClose={() => setAssignmentDrawerOpen(false)}
+        assignable={assignable}
+        assetId={assetId}
+        setAssetId={setAssetId}
+        department={department}
+        setDepartment={setDepartment}
+        users={users}
+        setUsers={setUsers}
+        startDate={startDate}
+        setStartDate={setStartDate}
+        loading={loading}
+        onSubmit={createAssignment}
+      />
 
       <Card title="Affectations actives">
         <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-12 md:items-end">

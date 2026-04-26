@@ -27,6 +27,7 @@ function RepairBlock({ repair }: { repair: RepairFromApi }) {
 
 const HISTORY_TYPE_LABELS: Record<HistoryEvent['type'], string> = {
   ASSET_CREATED: 'Création du matériel',
+  ASSET_UPDATED: 'Matériel modifié',
   STATUS_CHANGED: 'Changement d\'état',
   ASSIGNMENT_CREATED: 'Affectation créée',
   ASSIGNMENT_ENDED: 'Fin d\'affectation',
