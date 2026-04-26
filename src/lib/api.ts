@@ -223,10 +223,12 @@ function pushHistory(assetId: number, type: HistoryEvent['type'], payload: Recor
 function handlePostAssets(init?: RequestInit) {
   const input = (jsonBody(init) ?? {}) as Partial<{
     inventoryNumber: string
+    serialNumber: string
     type: string
     brand: string
     model: string
     entryDate: string
+    warrantyMonths: number
     supplier: string
   }>
 
@@ -240,10 +242,12 @@ function handlePostAssets(init?: RequestInit) {
   const asset: Asset = {
     id: nextId(db.assets),
     inventoryNumber: input.inventoryNumber,
+    serialNumber: input.serialNumber?.trim() || undefined,
     type: input.type,
     brand: input.brand,
     model: input.model,
     entryDate: input.entryDate,
+    warrantyMonths: Number.isFinite(Number(input.warrantyMonths)) ? Number(input.warrantyMonths) : undefined,
     supplier: input.supplier,
     status: 'EN_STOCK',
     createdAt: nowIso(),

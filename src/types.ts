@@ -9,10 +9,12 @@ export type AssetStatus =
 export type Asset = {
   id: number
   inventoryNumber: string
+  serialNumber?: string
   type: string
   brand: string
   model: string
   entryDate: string // ISO date
+  warrantyMonths?: number
   supplier: string
   status: AssetStatus
   createdAt: string

@@ -12,10 +12,12 @@ export type ListAssetsParams = {
 
 export type AssetCreatePayload = {
   inventoryNumber: string
+  serialNumber: string
   type: string
   brand: string
   model: string
   entryDate: string
+  warrantyMonths: number
   supplier: string
 }
 

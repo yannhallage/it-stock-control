@@ -1,5 +1,6 @@
 import type React from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
 import { useIncidents } from '../api/hooks/useIncidents'
@@ -18,6 +19,7 @@ export function WorkshopPage() {
 
   const [incidentId, setIncidentId] = useState<number | ''>('')
   const [action, setAction] = useState('')
+  const [repairBy, setRepairBy] = useState('')
   const [workshopIn, setWorkshopIn] = useState(new Date().toISOString().slice(0, 10))
 
   const { fetchAssets, loading: assetsLoading } = useAssets()
@@ -68,15 +70,22 @@ export function WorkshopPage() {
       toast.warning('Veuillez sélectionner un incident.')
       return
     }
+    if (!repairBy.trim()) {
+      toast.warning('Veuillez renseigner le nom de la personne ayant effectué la réparation.')
+      return
+    }
     try {
+      const normalizedAction = action.trim()
+      const repairByLine = `Réparation effectuée par: ${repairBy.trim()}`
       await startRepair({
         incidentId: Number(incidentId),
         workshopEntryDate: workshopIn,
-        action: action.trim() || undefined,
+        action: normalizedAction ? `${normalizedAction}\n${repairByLine}` : repairByLine,
       })
       toast.success('Réparation démarrée.')
       setIncidentId('')
       setAction('')
+      setRepairBy('')
       setWorkshopIn(new Date().toISOString().slice(0, 10))
       load()
     } catch (err: unknown) {
@@ -133,6 +142,11 @@ export function WorkshopPage() {
             type="date"
             value={workshopIn}
             onChange={(e) => setWorkshopIn(e.target.value)}
+          />
+          <Input
+            label="Nom de la personne ayant effectué la réparation"
+            value={repairBy}
+            onChange={(e) => setRepairBy(e.target.value)}
           />
           <Textarea
             label="Action menée"
@@ -195,7 +209,13 @@ export function WorkshopPage() {
           {!repairs.length ? (
             <tr>
               <td className="px-4 py-8 text-center text-gray-500" colSpan={6}>
-                {loading ? 'Chargement…' : 'Aucune réparation en cours.'}
+                {loading ? (
+                  <span className="inline-flex w-full items-center justify-center" aria-label="Chargement">
+                    <BeatLoader size={10} color="var(--color-primary)" />
+                  </span>
+                ) : (
+                  'Aucune réparation en cours.'
+                )}
               </td>
             </tr>
           ) : null}

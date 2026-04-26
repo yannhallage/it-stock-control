@@ -1,6 +1,7 @@
 import type React from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
 import { useSuppliers } from '../api/hooks/useSuppliers'
@@ -16,10 +17,12 @@ import { Button, Card, Input, PageTitle, Select, Table } from '../components/Ui'
 
 type AssetCreateInput = {
   inventoryNumber: string
+  serialNumber: string
   type: string
   brand: string
   model: string
   entryDate: string
+  warrantyMonths: string
   supplier: string
 }
 
@@ -83,6 +86,19 @@ function nextSequentialInventoryNumber(materialType: string, assets: Asset[]): s
   return `${prefix}${padded}`
 }
 
+function PrintIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M6 9V4h12v5M6 18h12v2H6v-2zm12-3h1a2 2 0 002-2v-3a2 2 0 00-2-2H5a2 2 0 00-2 2v3a2 2 0 002 2h1m12 0H6v-4h12v4z"
+      />
+    </svg>
+  )
+}
+
 export function AssetsPage() {
   const [items, setItems] = useState<Asset[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
@@ -97,10 +113,12 @@ export function AssetsPage() {
 
   const [form, setForm] = useState<AssetCreateInput>(() => ({
     inventoryNumber: nextSequentialInventoryNumber('PC', []),
+    serialNumber: '',
     type: 'PC',
     brand: '',
     model: '',
     entryDate: new Date().toISOString().slice(0, 10),
+    warrantyMonths: '',
     supplier: '',
   }))
 
@@ -166,9 +184,11 @@ export function AssetsPage() {
 
     const trimmedForm: AssetCreateInput = {
       ...form,
+      serialNumber: form.serialNumber.trim(),
       type: form.type.trim(),
       brand: form.brand.trim(),
       model: form.model.trim(),
+      warrantyMonths: form.warrantyMonths.trim(),
       supplier: form.supplier.trim(),
     }
 
@@ -178,6 +198,10 @@ export function AssetsPage() {
     }
     if (!trimmedForm.type) {
       toast.warning('Veuillez sélectionner un type de matériel.')
+      return
+    }
+    if (!trimmedForm.serialNumber) {
+      toast.warning('Veuillez saisir le numéro de série.')
       return
     }
     if (!trimmedForm.brand) {
@@ -192,20 +216,30 @@ export function AssetsPage() {
       toast.warning("Veuillez saisir la date d'entrée.")
       return
     }
+    const warrantyMonths = Number(trimmedForm.warrantyMonths)
+    if (!Number.isFinite(warrantyMonths) || warrantyMonths <= 0) {
+      toast.warning('Veuillez saisir un délai de garantie valide (en mois).')
+      return
+    }
     if (!trimmedForm.supplier) {
       toast.warning('Veuillez sélectionner un fournisseur.')
       return
     }
 
     try {
-      await createAsset(trimmedForm)
+      await createAsset({
+        ...trimmedForm,
+        warrantyMonths,
+      })
       toast.success('Matériel ajouté avec succès.')
       const fresh = await loadAllForSeq()
       setForm((f) => ({
         ...f,
         inventoryNumber: nextSequentialInventoryNumber(f.type, fresh),
+        serialNumber: '',
         brand: '',
         model: '',
+        warrantyMonths: '',
         supplier: '',
       }))
       load()
@@ -239,6 +273,10 @@ export function AssetsPage() {
     assetToDelete != null
       ? items.find((a) => a.id === assetToDelete)?.inventoryNumber ?? 'ce matériel'
       : ''
+
+  const handlePrint = () => {
+    window.print()
+  }
 
   return (
     <div className="space-y-6">
@@ -310,6 +348,11 @@ export function AssetsPage() {
             onChange={(e) => setForm({ ...form, brand: e.target.value })}
           />
           <Input
+            label="Numéro de série du matériel"
+            value={form.serialNumber}
+            onChange={(e) => setForm({ ...form, serialNumber: e.target.value })}
+          />
+          <Input
             label="Modèle"
             value={form.model}
             onChange={(e) => setForm({ ...form, model: e.target.value })}
@@ -319,6 +362,13 @@ export function AssetsPage() {
             type="date"
             value={form.entryDate}
             onChange={(e) => setForm({ ...form, entryDate: e.target.value })}
+          />
+          <Input
+            label="Délai de garantie (mois)"
+            type="number"
+            min={1}
+            value={form.warrantyMonths}
+            onChange={(e) => setForm({ ...form, warrantyMonths: e.target.value })}
           />
           <Select
             label="Fournisseur"
@@ -368,6 +418,9 @@ export function AssetsPage() {
             ))}
           </Select>
           <div className="flex items-end gap-2">
+            <Button onClick={handlePrint} className="cursor-pointer flex items-center gap-2" title="Imprimer">
+              <PrintIcon className="h-5 w-5" />
+            </Button>
             <Button onClick={load} className="cursor-pointer flex items-center gap-2" disabled={loading}>
               Filtrer
             </Button>
@@ -386,16 +439,33 @@ export function AssetsPage() {
           </div>
         </div>
 
-        <Table columns={['Inventaire', 'Type', 'Marque', 'Modèle', 'Entrée', 'Fournisseur', 'État', 'Actions']}>
+        <Table
+          columns={[
+            'Inventaire',
+            'N° série',
+            'Type',
+            'Marque',
+            'Modèle',
+            'Entrée',
+            'Garantie',
+            'Fournisseur',
+            'État',
+            'Actions',
+          ]}
+        >
           {items.map((a) => (
             <tr key={a.id} className="hover:bg-gray-50">
               <td className="px-4 py-3 font-medium text-gray-900">
                 {a.inventoryNumber}
               </td>
+              <td className="px-4 py-3 text-gray-600">{a.serialNumber || '—'}</td>
               <td className="px-4 py-3 text-gray-600">{a.type}</td>
               <td className="px-4 py-3 text-gray-600">{a.brand}</td>
               <td className="px-4 py-3 text-gray-600">{a.model}</td>
               <td className="px-4 py-3 text-gray-600">{formatDate(a.entryDate)}</td>
+              <td className="px-4 py-3 text-gray-600">
+                {typeof a.warrantyMonths === 'number' ? `${a.warrantyMonths} mois` : '—'}
+              </td>
               <td className="px-4 py-3 text-gray-600">{a.supplier}</td>
               <td className="px-4 py-3 text-gray-600">
                 <StatusBadge status={a.status} />
@@ -424,8 +494,14 @@ export function AssetsPage() {
           ))}
           {!items.length ? (
             <tr>
-              <td className="px-4 py-8 text-center text-gray-500" colSpan={8}>
-                {loading ? 'Chargement…' : 'Aucun matériel.'}
+              <td className="px-4 py-8 text-center text-gray-500" colSpan={10}>
+                {loading ? (
+                  <span className="inline-flex w-full items-center justify-center" aria-label="Chargement">
+                    <BeatLoader size={10} color="var(--color-primary)" />
+                  </span>
+                ) : (
+                  'Aucun matériel.'
+                )}
               </td>
             </tr>
           ) : null}

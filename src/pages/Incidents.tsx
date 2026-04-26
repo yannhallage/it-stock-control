@@ -1,5 +1,6 @@
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
+import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
 import { useIncidents } from '../api/hooks/useIncidents'
@@ -152,7 +153,13 @@ export function IncidentsPage() {
           {!items.length ? (
             <tr>
               <td className="px-4 py-8 text-center text-gray-500" colSpan={5}>
-                {loading ? 'Chargement…' : 'Aucune panne en cours.'}
+                {loading ? (
+                  <span className="inline-flex w-full items-center justify-center" aria-label="Chargement">
+                    <BeatLoader size={10} color="var(--color-primary)" />
+                  </span>
+                ) : (
+                  'Aucune panne en cours.'
+                )}
               </td>
             </tr>
           ) : null}

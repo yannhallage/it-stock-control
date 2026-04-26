@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
+import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { Button, Input, Table } from '../components/Ui'
 import { errorMessageFromUnknown } from '../lib/errors'
+import { formatDate } from '../lib/format'
 import { useSuppliers } from '../api/hooks/useSuppliers'
 import type { Supplier } from '../api/services/suppliers.service'
 
@@ -66,6 +68,19 @@ function ViewTableIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    </svg>
+  )
+}
+
+function PrintIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M6 9V4h12v5M6 18h12v2H6v-2zm12-3h1a2 2 0 002-2v-3a2 2 0 00-2-2H5a2 2 0 00-2 2v3a2 2 0 002 2h1m12 0H6v-4h12v4z"
+      />
     </svg>
   )
 }
@@ -175,6 +190,10 @@ export function SuppliersPage() {
     }
   }
 
+  const handlePrint = () => {
+    window.print()
+  }
+
   return (
     <div className="space-y-6">
       {error || apiError ? (
@@ -196,6 +215,14 @@ export function SuppliersPage() {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <Button
+            type="button"
+            onClick={handlePrint}
+            className="inline-flex items-center cursor-pointer gap-2 px-3 py-2.5"
+            title="Imprimer"
+          >
+            <PrintIcon className="h-5 w-5" />
+          </Button>
           <div
             className="inline-flex rounded border border-gray-200 bg-gray-50 p-0.5"
             role="group"
@@ -291,6 +318,9 @@ export function SuppliersPage() {
                   {s.contact ? (
                     <p className="text-sm text-gray-500">{s.contact}</p>
                   ) : null}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Ajouté le {s.createdAt ? formatDate(s.createdAt) : 'Date inconnue'}
+                  </p>
                   <p className="mt-2 text-sm font-medium text-[var(--color-primary)]">
                     {s.contact ? '1 contact' : 'Aucun contact'}
                   </p>
@@ -302,7 +332,9 @@ export function SuppliersPage() {
           {filteredSuppliers.length === 0 && (
             <div className="border border-gray-200 bg-white py-16 text-center">
               {suppliers.length === 0 && loading ? (
-                <p className="text-gray-500">Chargement…</p>
+                <span className="inline-flex w-full items-center justify-center" aria-label="Chargement">
+                  <BeatLoader size={10} color="var(--color-primary)" />
+                </span>
               ) : (
                 <p className="text-gray-500">
                   {suppliers.length === 0
@@ -314,7 +346,7 @@ export function SuppliersPage() {
           )}
         </>
       ) : (
-        <Table columns={['Nom', 'Adresse', 'Contact', 'Actions']}>
+        <Table columns={['Nom', 'Adresse', 'Contact', "Date d'ajout", 'Actions']}>
           {filteredSuppliers.map((s) => (
             <tr key={s.id} className="hover:bg-gray-50">
               <td className="px-4 py-3 font-medium text-gray-900">{s.name}</td>
@@ -323,6 +355,9 @@ export function SuppliersPage() {
               </td>
               <td className="px-4 py-3 text-gray-600">
                 {s.contact || <span className="text-gray-400">—</span>}
+              </td>
+              <td className="px-4 py-3 text-gray-600">
+                {s.createdAt ? formatDate(s.createdAt) : <span className="text-gray-400">—</span>}
               </td>
               <td className="px-4 py-3 text-right">
                 <div className="inline-flex items-center gap-1">
@@ -350,9 +385,11 @@ export function SuppliersPage() {
           ))}
           {filteredSuppliers.length === 0 && (
             <tr>
-              <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+              <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
                 {suppliers.length === 0 && loading ? (
-                  'Chargement…'
+                  <span className="inline-flex w-full items-center justify-center" aria-label="Chargement">
+                    <BeatLoader size={10} color="var(--color-primary)" />
+                  </span>
                 ) : suppliers.length === 0 ? (
                   'Aucun fournisseur. Cliquez sur « Ajouter un fournisseur » pour commencer.'
                 ) : (
