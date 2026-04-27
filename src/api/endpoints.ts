@@ -1,5 +1,10 @@
+function windowApiBaseUrl(): string | undefined {
+  if (typeof window === 'undefined') return undefined
+  return (window as Window & { __API_BASE_URL__?: string }).__API_BASE_URL__
+}
+
 const API_BASE_URL =
-  (import.meta as any).env?.VITE_API_BASE_URL || (window as any).__API_BASE_URL__ || 'http://localhost:3000'
+  import.meta.env.VITE_API_BASE_URL || windowApiBaseUrl() || 'http://localhost:3000'
 
 export const ENDPOINTS = {
   auth: {

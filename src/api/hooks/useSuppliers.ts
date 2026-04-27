@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { errorMessageFromUnknown } from '../../lib/errors'
 import {
   createSupplierService,
   deleteSupplierService,
@@ -28,8 +29,8 @@ export function useSuppliers(): UseSuppliersResult {
     setError(null)
     try {
       return await listSuppliersService(params ?? {})
-    } catch (e: any) {
-      const message = e?.message ?? 'Erreur lors du chargement des fournisseurs.'
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, 'Erreur lors du chargement des fournisseurs.')
       setError(String(message))
       throw e
     } finally {
@@ -42,8 +43,8 @@ export function useSuppliers(): UseSuppliersResult {
     setError(null)
     try {
       return await createSupplierService(payload)
-    } catch (e: any) {
-      const message = e?.message ?? "Erreur lors de l'ajout du fournisseur."
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, "Erreur lors de l'ajout du fournisseur.")
       setError(String(message))
       throw e
     } finally {
@@ -56,8 +57,8 @@ export function useSuppliers(): UseSuppliersResult {
     setError(null)
     try {
       return await updateSupplierService(id, payload)
-    } catch (e: any) {
-      const message = e?.message ?? 'Erreur lors de la mise à jour du fournisseur.'
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, 'Erreur lors de la mise à jour du fournisseur.')
       setError(String(message))
       throw e
     } finally {
@@ -70,8 +71,8 @@ export function useSuppliers(): UseSuppliersResult {
     setError(null)
     try {
       await deleteSupplierService(id)
-    } catch (e: any) {
-      const message = e?.message ?? 'Erreur lors de la suppression du fournisseur.'
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, 'Erreur lors de la suppression du fournisseur.')
       setError(String(message))
       throw e
     } finally {

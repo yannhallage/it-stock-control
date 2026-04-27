@@ -1,26 +1,21 @@
 import type React from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
 import { useSuppliers } from '../api/hooks/useSuppliers'
 import { useMaterialTypes } from '../api/hooks/useMaterialTypes'
+import { errorMessageFromUnknown } from '../lib/errors'
 import { formatDate } from '../lib/format'
 import type { Asset, AssetStatus } from '../types'
 import type { Supplier } from '../api/services/suppliers.service'
 import type { MaterialType } from '../api/services/material-types.service'
 import { StatusBadge } from '../components/Badge'
+import { DrawerAssets, type AssetCreateFormState } from '../components/drawers/DrawerAssets'
+import { DrawerAssetsUpdate } from '../components/drawers/DrawerAssetsUpdate'
 import { ConfirmModal } from '../components/Modal'
 import { Button, Card, Input, PageTitle, Select, Table } from '../components/Ui'
-
-type AssetCreateInput = {
-  inventoryNumber: string
-  type: string
-  brand: string
-  model: string
-  entryDate: string
-  supplier: string
-}
 
 const statusOptions: Array<{ value: AssetStatus | ''; label: string }> = [
   { value: '', label: 'Tous' },
@@ -62,6 +57,16 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+function serialNumberValue(asset: Asset): string {
+  return (asset.serialNumber ?? asset.serial_number ?? '').trim()
+}
+
+function warrantyLabel(asset: Asset): string {
+  if (asset.warrantyEndDate) return `Jusqu'au ${formatDate(asset.warrantyEndDate)}`
+  if (typeof asset.warrantyMonths === 'number') return `${asset.warrantyMonths} mois`
+  return '—'
+}
+
 /** Prochain numéro du type `PC0002`, `PC00303` (préfixe + suite numérique). */
 function nextSequentialInventoryNumber(materialType: string, assets: Asset[]): string {
   const prefix = materialTypePrefix(materialType)
@@ -82,6 +87,58 @@ function nextSequentialInventoryNumber(materialType: string, assets: Asset[]): s
   return `${prefix}${padded}`
 }
 
+function PrintIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M6 9V4h12v5M6 18h12v2H6v-2zm12-3h1a2 2 0 002-2v-3a2 2 0 00-2-2H5a2 2 0 00-2 2v3a2 2 0 002 2h1m12 0H6v-4h12v4z"
+      />
+    </svg>
+  )
+}
+
+function PencilIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+      />
+    </svg>
+  )
+}
+
+function HistoryIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  )
+}
+
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+      />
+    </svg>
+  )
+}
+
 export function AssetsPage() {
   const [items, setItems] = useState<Asset[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
@@ -94,19 +151,35 @@ export function AssetsPage() {
 
   const [allAssets, setAllAssets] = useState<Asset[]>([])
 
-  const [form, setForm] = useState<AssetCreateInput>(() => ({
+  const [drawerOpen, setDrawerOpen] = useState(false)
+
+  const [form, setForm] = useState<AssetCreateFormState>(() => ({
     inventoryNumber: nextSequentialInventoryNumber('PC', []),
+    serialNumber: '',
     type: 'PC',
     brand: '',
     model: '',
     entryDate: new Date().toISOString().slice(0, 10),
+    warrantyMonths: '',
     supplier: '',
   }))
 
   const [assetToDelete, setAssetToDelete] = useState<number | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  const { fetchAssets, createAsset, deleteAsset, loading, error: apiError } = useAssets()
+  const [assetEditingId, setAssetEditingId] = useState<number | null>(null)
+  const [updateForm, setUpdateForm] = useState<AssetCreateFormState>(() => ({
+    inventoryNumber: '',
+    serialNumber: '',
+    type: '',
+    brand: '',
+    model: '',
+    entryDate: new Date().toISOString().slice(0, 10),
+    warrantyMonths: '',
+    supplier: '',
+  }))
+
+  const { fetchAssets, createAsset, updateAsset, deleteAsset, loading, error: apiError } = useAssets()
   const { fetchSuppliers } = useSuppliers()
   const { fetchMaterialTypes } = useMaterialTypes()
 
@@ -163,11 +236,13 @@ export function AssetsPage() {
     e.preventDefault()
     setError(null)
 
-    const trimmedForm: AssetCreateInput = {
+    const trimmedForm: AssetCreateFormState = {
       ...form,
+      serialNumber: form.serialNumber.trim(),
       type: form.type.trim(),
       brand: form.brand.trim(),
       model: form.model.trim(),
+      warrantyMonths: form.warrantyMonths.trim(),
       supplier: form.supplier.trim(),
     }
 
@@ -197,21 +272,108 @@ export function AssetsPage() {
     }
 
     try {
-      await createAsset(trimmedForm)
+      const parsedWarrantyMonths = Number(trimmedForm.warrantyMonths)
+      await createAsset({
+        ...trimmedForm,
+        serialNumber: trimmedForm.serialNumber || undefined,
+        warrantyMonths:
+          Number.isFinite(parsedWarrantyMonths) && parsedWarrantyMonths > 0 ? parsedWarrantyMonths : undefined,
+      })
       toast.success('Matériel ajouté avec succès.')
       const fresh = await loadAllForSeq()
       setForm((f) => ({
         ...f,
         inventoryNumber: nextSequentialInventoryNumber(f.type, fresh),
+        serialNumber: '',
         brand: '',
         model: '',
+        warrantyMonths: '',
         supplier: '',
       }))
+      setDrawerOpen(false)
       load()
-    } catch (err: any) {
-      const msg = String(err?.message ?? err)
+    } catch (err: unknown) {
+      const msg = errorMessageFromUnknown(err, "Erreur lors de l'ajout du matériel.")
       setError(msg)
       toast.error(msg || "Erreur lors de l'ajout du matériel.")
+    }
+  }
+
+  function openEdit(a: Asset) {
+    setUpdateForm({
+      inventoryNumber: a.inventoryNumber,
+      serialNumber: serialNumberValue(a),
+      type: a.type,
+      brand: a.brand,
+      model: a.model,
+      entryDate: a.entryDate.length >= 10 ? a.entryDate.slice(0, 10) : a.entryDate,
+      warrantyMonths: typeof a.warrantyMonths === 'number' ? String(a.warrantyMonths) : '',
+      supplier: a.supplier,
+    })
+    setAssetEditingId(a.id)
+  }
+
+  async function onUpdate(e: React.FormEvent) {
+    e.preventDefault()
+    if (assetEditingId == null) return
+    setError(null)
+
+    const trimmed: AssetCreateFormState = {
+      ...updateForm,
+      inventoryNumber: updateForm.inventoryNumber.trim(),
+      serialNumber: updateForm.serialNumber.trim(),
+      type: updateForm.type.trim(),
+      brand: updateForm.brand.trim(),
+      model: updateForm.model.trim(),
+      warrantyMonths: updateForm.warrantyMonths.trim(),
+      supplier: updateForm.supplier.trim(),
+    }
+
+    if (!trimmed.inventoryNumber) {
+      toast.warning("Le numéro d'inventaire est manquant.")
+      return
+    }
+    if (!trimmed.type) {
+      toast.warning('Veuillez sélectionner un type de matériel.')
+      return
+    }
+    if (!trimmed.brand) {
+      toast.warning('Veuillez saisir la marque du matériel.')
+      return
+    }
+    if (!trimmed.model) {
+      toast.warning('Veuillez saisir le modèle du matériel.')
+      return
+    }
+    if (!trimmed.entryDate) {
+      toast.warning("Veuillez saisir la date d'entrée.")
+      return
+    }
+    if (!trimmed.supplier) {
+      toast.warning('Veuillez sélectionner un fournisseur.')
+      return
+    }
+
+    try {
+      const parsedWarrantyMonths = Number(trimmed.warrantyMonths)
+      await updateAsset(assetEditingId, {
+        ...trimmed,
+        serialNumber: trimmed.serialNumber || undefined,
+        warrantyMonths:
+          Number.isFinite(parsedWarrantyMonths) && parsedWarrantyMonths > 0 ? parsedWarrantyMonths : undefined,
+      })
+      toast.success('Matériel mis à jour.')
+      const fresh = await loadAllForSeq()
+      setForm((f) => ({
+        ...f,
+        inventoryNumber: nextSequentialInventoryNumber(f.type, fresh),
+      }))
+      setAssetEditingId(null)
+      load()
+    } catch (err: unknown) {
+      const msg = errorMessageFromUnknown(err, 'Erreur lors de la mise à jour du matériel.')
+      setError(msg)
+      toast.error(msg || 'Erreur lors de la mise à jour du matériel.')
     }
   }
 
@@ -239,6 +401,10 @@ export function AssetsPage() {
       ? items.find((a) => a.id === assetToDelete)?.inventoryNumber ?? 'ce matériel'
       : ''
 
+  const handlePrint = () => {
+    window.print()
+  }
+
   return (
     <div className="space-y-6">
       <ConfirmModal
@@ -255,19 +421,29 @@ export function AssetsPage() {
       </ConfirmModal>
       <div className="flex items-center justify-between">
         <PageTitle>Gestion de Stock</PageTitle>
-        <Button
-          onClick={() => {
-            load()
-            loadAllForSeq().catch((e) => {
-              const msg = String(e?.message ?? e)
-              toast.error(msg || 'Erreur lors du chargement.')
-            })
-          }}
-          disabled={loading}
-          className="cursor-pointer flex items-center gap-2"
-        >
-          Actualiser
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="primary"
+            onClick={() => setDrawerOpen(true)}
+            className="cursor-pointer flex items-center gap-2"
+            disabled={loading}
+          >
+            Ajouter un matériel
+          </Button>
+          <Button
+            onClick={() => {
+              load()
+              loadAllForSeq().catch((e) => {
+                const msg = String(e?.message ?? e)
+                toast.error(msg || 'Erreur lors du chargement.')
+              })
+            }}
+            disabled={loading}
+            className="cursor-pointer flex items-center gap-2"
+          >
+            Actualiser
+          </Button>
+        </div>
       </div>
 
       {error || apiError ? (
@@ -276,68 +452,28 @@ export function AssetsPage() {
         </div>
       ) : null}
 
-      <Card title="Ajouter un matériel">
-        <form className="grid grid-cols-1 gap-4 md:grid-cols-3" onSubmit={onCreate}>
-          <Input
-            label="Numéro d'inventaire (généré)"
-            value={form.inventoryNumber}
-            readOnly
-            className="bg-gray-50 font-mono"
-          />
-          <Select
-            label="Type (PC, Imprimante, etc.)"
-            value={form.type}
-            onChange={(e) => {
-              const nextType = e.target.value
-              setForm({
-                ...form,
-                type: nextType,
-                inventoryNumber: nextSequentialInventoryNumber(nextType, allAssets),
-              })
-            }}
-          >
-            <option value="">Sélectionner un type</option>
-            {materialTypes.map((t) => (
-              <option key={t.id} value={t.name}>
-                {t.name}
-              </option>
-            ))}
-          </Select>
-          <Input
-            label="Marque"
-            value={form.brand}
-            onChange={(e) => setForm({ ...form, brand: e.target.value })}
-          />
-          <Input
-            label="Modèle"
-            value={form.model}
-            onChange={(e) => setForm({ ...form, model: e.target.value })}
-          />
-          <Input
-            label="Date d'entrée"
-            type="date"
-            value={form.entryDate}
-            onChange={(e) => setForm({ ...form, entryDate: e.target.value })}
-          />
-          <Select
-            label="Fournisseur"
-            value={form.supplier}
-            onChange={(e) => setForm({ ...form, supplier: e.target.value })}
-          >
-            <option value="">Sélectionner un fournisseur</option>
-            {suppliers.map((s) => (
-              <option key={s.id} value={s.name}>
-                {s.name}
-              </option>
-            ))}
-          </Select>
-          <div className="md:col-span-3">
-            <Button type="submit" className="cursor-pointer flex items-center gap-2" variant="primary" disabled={loading}>
-              Ajouter
-            </Button>
-          </div>
-        </form>
-      </Card>
+      <DrawerAssets
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        form={form}
+        setForm={setForm}
+        materialTypes={materialTypes}
+        suppliers={suppliers}
+        loading={loading}
+        onSubmit={onCreate}
+        nextInventoryForType={(materialType) => nextSequentialInventoryNumber(materialType, allAssets)}
+      />
+
+      <DrawerAssetsUpdate
+        isOpen={assetEditingId != null}
+        onClose={() => setAssetEditingId(null)}
+        form={updateForm}
+        setForm={setUpdateForm}
+        materialTypes={materialTypes}
+        suppliers={suppliers}
+        loading={loading}
+        onSubmit={onUpdate}
+      />
 
       <Card title="Liste du matériel">
         <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4">
@@ -367,6 +503,9 @@ export function AssetsPage() {
             ))}
           </Select>
           <div className="flex items-end gap-2">
+            <Button onClick={handlePrint} className="cursor-pointer flex items-center gap-2" title="Imprimer">
+              <PrintIcon className="h-5 w-5" />
+            </Button>
             <Button onClick={load} className="cursor-pointer flex items-center gap-2" disabled={loading}>
               Filtrer
             </Button>
@@ -385,46 +524,77 @@ export function AssetsPage() {
           </div>
         </div>
 
-        <Table columns={['Inventaire', 'Type', 'Marque', 'Modèle', 'Entrée', 'Fournisseur', 'État', 'Actions']}>
+        <Table
+          columns={[
+            'Inventaire',
+            'N° série',
+            'Type',
+            'Marque',
+            'Modèle',
+            'Entrée',
+            'Garantie',
+            'Fournisseur',
+            'État',
+            'Actions',
+          ]}
+        >
           {items.map((a) => (
             <tr key={a.id} className="hover:bg-gray-50">
               <td className="px-4 py-3 font-medium text-gray-900">
                 {a.inventoryNumber}
               </td>
+              <td className="px-4 py-3 text-gray-600">{serialNumberValue(a) || '—'}</td>
               <td className="px-4 py-3 text-gray-600">{a.type}</td>
               <td className="px-4 py-3 text-gray-600">{a.brand}</td>
               <td className="px-4 py-3 text-gray-600">{a.model}</td>
               <td className="px-4 py-3 text-gray-600">{formatDate(a.entryDate)}</td>
+              <td className="px-4 py-3 text-gray-600">{warrantyLabel(a)}</td>
               <td className="px-4 py-3 text-gray-600">{a.supplier}</td>
               <td className="px-4 py-3 text-gray-600">
                 <StatusBadge status={a.status} />
               </td>
               <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   <Link
                     to={`/assets/${a.id}`}
-                    className={`rounded p-1.5 text-gray-600 hover:bg-gray-100 hover:text-gray-900 cursor-pointer ${loading ? 'pointer-events-none opacity-50' : ''}`}
+                    className={`inline-flex items-center justify-center rounded p-1.5 text-gray-600 hover:bg-gray-100 hover:text-gray-900 ${loading ? 'pointer-events-none opacity-50' : ''}`}
                     title="Historique / Aperçu"
                     aria-label="Voir l'historique"
                   >
-                    Historique
+                    <HistoryIcon className="h-3 w-3" />
                   </Link>
-                  <div
-                    className={`rounded p-1.5 text-gray-600 hover:bg-red-50 hover:text-red-600 cursor-pointer ${loading ? 'pointer-events-none opacity-50' : ''}`}
+                  <button
+                    type="button"
+                    className={`inline-flex items-center cursor-pointer justify-center rounded p-1.5 text-gray-600 hover:bg-amber-50 hover:text-amber-800 ${loading ? 'pointer-events-none opacity-50' : ''}`}
+                    title="Modifier"
+                    aria-label="Modifier le matériel"
+                    onClick={() => !loading && openEdit(a)}
+                  >
+                    <PencilIcon className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    className={`inline-flex items-center cursor-pointer justify-center rounded p-1.5 text-gray-600 hover:bg-red-50 hover:text-red-600 ${loading ? 'pointer-events-none opacity-50' : ''}`}
                     title="Supprimer"
-                    aria-label="Supprimer"
+                    aria-label="Supprimer le matériel"
                     onClick={() => !loading && setAssetToDelete(a.id)}
                   >
-                    Supprimer
-                  </div>
+                    <TrashIcon className="h-3 w-3" />
+                  </button>
                 </div>
               </td>
             </tr>
           ))}
           {!items.length ? (
             <tr>
-              <td className="px-4 py-8 text-center text-gray-500" colSpan={8}>
-                {loading ? 'Chargement…' : 'Aucun matériel.'}
+              <td className="px-4 py-8 text-center text-gray-500" colSpan={10}>
+                {loading ? (
+                  <span className="inline-flex w-full items-center justify-center" aria-label="Chargement">
+                    <BeatLoader size={10} color="var(--color-primary)" />
+                  </span>
+                ) : (
+                  'Aucun matériel.'
+                )}
               </td>
             </tr>
           ) : null}

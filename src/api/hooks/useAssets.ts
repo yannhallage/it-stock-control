@@ -1,16 +1,20 @@
 import { useCallback, useState } from 'react'
+import { errorMessageFromUnknown } from '../../lib/errors'
 import type { Asset } from '../../types'
 import {
   createAssetService,
   deleteAssetService,
   listAssetsService,
+  updateAssetService,
   type AssetCreatePayload,
+  type AssetUpdatePayload,
   type ListAssetsParams,
 } from '../services/assets.service'
 
 type UseAssetsResult = {
   fetchAssets: (params?: ListAssetsParams) => Promise<Asset[]>
   createAsset: (payload: AssetCreatePayload) => Promise<Asset>
+  updateAsset: (id: number, payload: AssetUpdatePayload) => Promise<Asset>
   deleteAsset: (id: number) => Promise<void>
   loading: boolean
   error: string | null
@@ -26,8 +30,8 @@ export function useAssets(): UseAssetsResult {
     try {
       const res = await listAssetsService(params ?? {})
       return res
-    } catch (e: any) {
-      const message = e?.message ?? 'Erreur lors du chargement des matériels.'
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, 'Erreur lors du chargement des matériels.')
       setError(String(message))
       throw e
     } finally {
@@ -40,8 +44,22 @@ export function useAssets(): UseAssetsResult {
     setError(null)
     try {
       return await createAssetService(payload)
-    } catch (e: any) {
-      const message = e?.message ?? "Erreur lors de l'ajout du matériel."
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, "Erreur lors de l'ajout du matériel.")
+      setError(String(message))
+      throw e
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const update = useCallback(async (id: number, payload: AssetUpdatePayload) => {
+    setLoading(true)
+    setError(null)
+    try {
+      return await updateAssetService(id, payload)
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, 'Erreur lors de la mise à jour du matériel.')
       setError(String(message))
       throw e
     } finally {
@@ -54,8 +72,8 @@ export function useAssets(): UseAssetsResult {
     setError(null)
     try {
       await deleteAssetService(id)
-    } catch (e: any) {
-      const message = e?.message ?? 'Erreur lors de la suppression du matériel.'
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, 'Erreur lors de la suppression du matériel.')
       setError(String(message))
       throw e
     } finally {
@@ -63,6 +81,6 @@ export function useAssets(): UseAssetsResult {
     }
   }, [])
 
-  return { fetchAssets, createAsset: create, deleteAsset: remove, loading, error }
+  return { fetchAssets, createAsset: create, updateAsset: update, deleteAsset: remove, loading, error }
 }
 

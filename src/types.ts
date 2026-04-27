@@ -9,10 +9,15 @@ export type AssetStatus =
 export type Asset = {
   id: number
   inventoryNumber: string
+  serialNumber?: string
+  serial_number?: string | null
   type: string
   brand: string
   model: string
   entryDate: string // ISO date
+  warrantyMonths?: number
+  warrantyStartDate?: string | null
+  warrantyEndDate?: string | null
   supplier: string
   status: AssetStatus
   createdAt: string
@@ -71,6 +76,7 @@ export type HistoryEvent = {
   assetId: number
   type:
     | 'ASSET_CREATED'
+    | 'ASSET_UPDATED'
     | 'STATUS_CHANGED'
     | 'ASSIGNMENT_CREATED'
     | 'ASSIGNMENT_ENDED'

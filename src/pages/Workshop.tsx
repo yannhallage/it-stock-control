@@ -1,5 +1,5 @@
-import type React from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
 import { useIncidents } from '../api/hooks/useIncidents'
@@ -8,7 +8,8 @@ import type { RepairWithRelations } from '../api/services/workshop.service'
 import { formatDate } from '../lib/format'
 import type { Asset, Incident } from '../types'
 import { StatusBadge } from '../components/Badge'
-import { Button, Card, Input, PageTitle, Select, Table, Textarea } from '../components/Ui'
+import { DrawerStartRepair } from '../components/drawers/DrawerStartRepair'
+import { Button, Card, PageTitle, Table } from '../components/Ui'
 
 export function WorkshopPage() {
   const [assets, setAssets] = useState<Asset[]>([])
@@ -16,9 +17,7 @@ export function WorkshopPage() {
   const [repairs, setRepairs] = useState<RepairWithRelations[]>([])
   const [error, setError] = useState<string | null>(null)
 
-  const [incidentId, setIncidentId] = useState<number | ''>('')
-  const [action, setAction] = useState('')
-  const [workshopIn, setWorkshopIn] = useState(new Date().toISOString().slice(0, 10))
+  const [startRepairDrawerOpen, setStartRepairDrawerOpen] = useState(false)
 
   const { fetchAssets, loading: assetsLoading } = useAssets()
   const { fetchIncidents, loading: incidentsLoading } = useIncidents()
@@ -61,31 +60,6 @@ export function WorkshopPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function handleStartRepair(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    if (!incidentId) {
-      toast.warning('Veuillez sélectionner un incident.')
-      return
-    }
-    try {
-      await startRepair({
-        incidentId: Number(incidentId),
-        workshopEntryDate: workshopIn,
-        action: action.trim() || undefined,
-      })
-      toast.success('Réparation démarrée.')
-      setIncidentId('')
-      setAction('')
-      setWorkshopIn(new Date().toISOString().slice(0, 10))
-      load()
-    } catch (err: unknown) {
-      const msg = String(err instanceof Error ? err.message : err)
-      setError(msg)
-      toast.error(msg || 'Erreur lors du démarrage de la réparation.')
-    }
-  }
-
   async function handleCloseRepair(repairId: number, outcome: 'EN_SERVICE' | 'HORS_SERVICE') {
     setError(null)
     try {
@@ -101,11 +75,22 @@ export function WorkshopPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <PageTitle>Suivi Atelier</PageTitle>
-        <Button type="button" onClick={load} disabled={loading} className="flex items-center gap-2 cursor-pointer">
-          Actualiser
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="primary"
+            className="cursor-pointer"
+            onClick={() => setStartRepairDrawerOpen(true)}
+            disabled={loading}
+          >
+            Démarrer une réparation
+          </Button>
+          <Button type="button" onClick={load} disabled={loading} className="flex items-center gap-2 cursor-pointer">
+            Actualiser
+          </Button>
+        </div>
       </div>
 
       {error ?? apiError ? (
@@ -114,40 +99,14 @@ export function WorkshopPage() {
         </div>
       ) : null}
 
-      <Card title="Démarrer une réparation (En Panne → En Réparation)">
-        <form className="grid grid-cols-1 gap-4 md:grid-cols-2" onSubmit={handleStartRepair}>
-          <Select
-            label="Incident"
-            value={incidentId}
-            onChange={(e) => setIncidentId(e.target.value ? Number(e.target.value) : '')}
-          >
-            <option value="">Sélectionner…</option>
-            {incidentChoices.map((i) => (
-              <option key={i.id} value={i.id}>
-                #{i.id} — {assetsById.get(i.assetId)?.inventoryNumber ?? `#${i.assetId}`} — {i.department}
-              </option>
-            ))}
-          </Select>
-          <Input
-            label="Date entrée atelier"
-            type="date"
-            value={workshopIn}
-            onChange={(e) => setWorkshopIn(e.target.value)}
-          />
-          <Textarea
-            label="Action menée"
-            value={action}
-            onChange={(e) => setAction(e.target.value)}
-            rows={3}
-            className="md:col-span-2"
-          />
-          <div className="md:col-span-2">
-            <Button type="submit" className="cursor-pointer flex items-center gap-2" variant="primary" disabled={loading}>
-              Passer en réparation
-            </Button>
-          </div>
-        </form>
-      </Card>
+      <DrawerStartRepair
+        isOpen={startRepairDrawerOpen}
+        onClose={() => setStartRepairDrawerOpen(false)}
+        onSuccess={load}
+        incidentChoices={incidentChoices}
+        assetsById={assetsById}
+        startRepair={startRepair}
+      />
 
       <Card title="Réparations en cours (alertes)">
         <Table columns={['Matériel', 'État', 'Incident', 'Entrée atelier', 'Action', 'Clôture']}>
@@ -195,7 +154,13 @@ export function WorkshopPage() {
           {!repairs.length ? (
             <tr>
               <td className="px-4 py-8 text-center text-gray-500" colSpan={6}>
-                {loading ? 'Chargement…' : 'Aucune réparation en cours.'}
+                {loading ? (
+                  <span className="inline-flex w-full items-center justify-center" aria-label="Chargement">
+                    <BeatLoader size={10} color="var(--color-primary)" />
+                  </span>
+                ) : (
+                  'Aucune réparation en cours.'
+                )}
               </td>
             </tr>
           ) : null}

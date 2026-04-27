@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { Button, Input, Table } from '../components/Ui'
+import { errorMessageFromUnknown } from '../lib/errors'
 import { useMaterialTypes } from '../api/hooks/useMaterialTypes'
 import type { MaterialType } from '../api/services/material-types.service'
 
@@ -84,10 +86,10 @@ export function MaterialTypesPage() {
       }
 
       closeModal()
-    } catch (e: any) {
-      const msg = String(e?.message ?? e)
+    } catch (e: unknown) {
+      const msg = errorMessageFromUnknown(e, "Erreur lors de l'enregistrement du type de matériel.")
       setError(msg)
-      toast.error(msg || "Erreur lors de l'enregistrement du type de matériel.")
+      toast.error(msg)
     }
   }
 
@@ -98,10 +100,10 @@ export function MaterialTypesPage() {
         await deleteMaterialType(id)
         setItems((prev) => prev.filter((t) => t.id !== id))
         toast.success('Type de matériel supprimé.')
-      } catch (e: any) {
-        const msg = String(e?.message ?? e)
+      } catch (e: unknown) {
+        const msg = errorMessageFromUnknown(e, 'Erreur lors de la suppression du type de matériel.')
         setError(msg)
-        toast.error(msg || 'Erreur lors de la suppression du type de matériel.')
+        toast.error(msg)
       }
     }
   }
@@ -169,7 +171,9 @@ export function MaterialTypesPage() {
             <td colSpan={3} className="px-4 py-8 text-center text-gray-500">
               {items.length === 0 ? (
                 loading ? (
-                  'Chargement…'
+                  <span className="inline-flex w-full items-center justify-center" aria-label="Chargement">
+                    <BeatLoader size={10} color="var(--color-primary)" />
+                  </span>
                 ) : (
                   'Aucun type de matériel. Cliquez sur « Ajouter un type » pour commencer.'
                 )

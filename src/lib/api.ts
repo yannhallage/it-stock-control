@@ -46,7 +46,7 @@ function parseUrl(path: string) {
   return new URL(path, 'http://local')
 }
 
-function jsonBody(init?: RequestInit): any {
+function jsonBody(init?: RequestInit): unknown {
   const b = init?.body
   if (!b) return null
   if (typeof b === 'string') {
@@ -223,10 +223,12 @@ function pushHistory(assetId: number, type: HistoryEvent['type'], payload: Recor
 function handlePostAssets(init?: RequestInit) {
   const input = (jsonBody(init) ?? {}) as Partial<{
     inventoryNumber: string
+    serialNumber: string
     type: string
     brand: string
     model: string
     entryDate: string
+    warrantyMonths: number
     supplier: string
   }>
 
@@ -240,10 +242,12 @@ function handlePostAssets(init?: RequestInit) {
   const asset: Asset = {
     id: nextId(db.assets),
     inventoryNumber: input.inventoryNumber,
+    serialNumber: input.serialNumber?.trim() || undefined,
     type: input.type,
     brand: input.brand,
     model: input.model,
     entryDate: input.entryDate,
+    warrantyMonths: Number.isFinite(Number(input.warrantyMonths)) ? Number(input.warrantyMonths) : undefined,
     supplier: input.supplier,
     status: 'EN_STOCK',
     createdAt: nowIso(),
@@ -251,6 +255,48 @@ function handlePostAssets(init?: RequestInit) {
   }
   db.assets.push(asset)
   pushHistory(asset.id, 'ASSET_CREATED', { inventoryNumber: asset.inventoryNumber, status: asset.status })
+  return asset
+}
+
+function handlePutAsset(assetId: number, init?: RequestInit) {
+  const asset = db.assets.find((a) => a.id === assetId)
+  if (!asset) throw new ApiError('Matériel introuvable', 404, { assetId })
+
+  const input = (jsonBody(init) ?? {}) as Partial<{
+    inventoryNumber: string
+    serialNumber: string
+    type: string
+    brand: string
+    model: string
+    entryDate: string
+    warrantyMonths: number
+    supplier: string
+  }>
+
+  if (!input.inventoryNumber || !input.type || !input.brand || !input.model || !input.entryDate || !input.supplier) {
+    throw new ApiError('Champs manquants', 400, input)
+  }
+
+  if (db.assets.some((a) => a.id !== assetId && a.inventoryNumber === input.inventoryNumber)) {
+    throw new ApiError("Numéro d'inventaire déjà utilisé", 409, { inventoryNumber: input.inventoryNumber })
+  }
+
+  const warrantyMonths = Number(input.warrantyMonths)
+  if (!Number.isFinite(warrantyMonths) || warrantyMonths <= 0) {
+    throw new ApiError('Délai de garantie invalide', 400, input)
+  }
+
+  asset.inventoryNumber = input.inventoryNumber
+  asset.serialNumber = input.serialNumber?.trim() || undefined
+  asset.type = input.type
+  asset.brand = input.brand
+  asset.model = input.model
+  asset.entryDate = input.entryDate
+  asset.warrantyMonths = warrantyMonths
+  asset.supplier = input.supplier
+  asset.updatedAt = nowIso()
+
+  pushHistory(assetId, 'ASSET_UPDATED', { inventoryNumber: asset.inventoryNumber })
   return asset
 }
 
@@ -445,6 +491,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     {
       const m = pathname.match(/^\/api\/assets\/(\d+)$/)
       if (method === 'GET' && m) return clone(assetDetails(Number(m[1]))) as T
+      if (method === 'PUT' && m) return clone(handlePutAsset(Number(m[1]), init)) as T
       if (method === 'DELETE' && m) {
         handleDeleteAsset(Number(m[1]))
         return undefined as T
@@ -476,8 +523,9 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     }
 
     throw new ApiError('Endpoint non implémenté (mode seed)', 404, { method, path })
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e instanceof ApiError) throw e
-    throw new ApiError(String(e?.message ?? e), 500, { method, path })
+    const msg = e instanceof Error ? e.message : String(e)
+    throw new ApiError(msg, 500, { method, path })
   }
 }

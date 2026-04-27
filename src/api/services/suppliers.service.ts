@@ -6,6 +6,7 @@ export type Supplier = {
   name: string
   contact: string
   address: string
+  createdAt?: string
 }
 
 export type ListSuppliersParams = {

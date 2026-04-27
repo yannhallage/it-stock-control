@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { errorMessageFromUnknown } from '../../lib/errors'
 import {
   createMaterialTypeService,
   deleteMaterialTypeService,
@@ -28,8 +29,8 @@ export function useMaterialTypes(): UseMaterialTypesResult {
     setError(null)
     try {
       return await listMaterialTypesService(params ?? {})
-    } catch (e: any) {
-      const message = e?.message ?? 'Erreur lors du chargement des types de matériel.'
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, 'Erreur lors du chargement des types de matériel.')
       setError(String(message))
       throw e
     } finally {
@@ -42,8 +43,8 @@ export function useMaterialTypes(): UseMaterialTypesResult {
     setError(null)
     try {
       return await createMaterialTypeService(payload)
-    } catch (e: any) {
-      const message = e?.message ?? "Erreur lors de l'ajout du type de matériel."
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, "Erreur lors de l'ajout du type de matériel.")
       setError(String(message))
       throw e
     } finally {
@@ -56,8 +57,8 @@ export function useMaterialTypes(): UseMaterialTypesResult {
     setError(null)
     try {
       return await updateMaterialTypeService(id, payload)
-    } catch (e: any) {
-      const message = e?.message ?? 'Erreur lors de la mise à jour du type de matériel.'
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, 'Erreur lors de la mise à jour du type de matériel.')
       setError(String(message))
       throw e
     } finally {
@@ -70,8 +71,8 @@ export function useMaterialTypes(): UseMaterialTypesResult {
     setError(null)
     try {
       await deleteMaterialTypeService(id)
-    } catch (e: any) {
-      const message = e?.message ?? 'Erreur lors de la suppression du type de matériel.'
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, 'Erreur lors de la suppression du type de matériel.')
       setError(String(message))
       throw e
     } finally {
