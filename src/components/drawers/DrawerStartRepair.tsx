@@ -119,8 +119,8 @@ export function DrawerStartRepair({
         }`}
         aria-label="Démarrer une réparation"
       >
-        <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4">
             <h3 className="text-base font-semibold text-gray-900">
               Démarrer une réparation (En Panne → En Réparation)
             </h3>
@@ -129,7 +129,7 @@ export function DrawerStartRepair({
             </Button>
           </div>
 
-          <form className="flex h-full flex-col gap-4 overflow-y-auto p-5" onSubmit={handleSubmit}>
+          <form className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-5" onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Select
                 label="Incident"
@@ -154,16 +154,17 @@ export function DrawerStartRepair({
                 value={repairBy}
                 onChange={(e) => setRepairBy(e.target.value)}
               />
-              <Textarea
-                label="Action menée"
-                value={action}
-                onChange={(e) => setAction(e.target.value)}
-                rows={3}
-                className="md:col-span-2"
-              />
+              <div className="hidden md:block" />
+              <div className="md:col-span-2">
+                <Textarea
+                  label="Action menée"
+                  value={action}
+                  onChange={(e) => setAction(e.target.value)}
+                  rows={4}
+                />
+              </div>
             </div>
-
-            <div className="mt-auto flex items-center justify-end gap-2 border-t border-gray-100 pt-4">
+            <div className="mt-auto flex shrink-0 items-center justify-end gap-2 border-t border-gray-100 pt-4">
               <Button type="button" variant="default" className="cursor-pointer" onClick={onClose} disabled={submitting}>
                 Annuler
               </Button>
