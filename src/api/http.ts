@@ -27,7 +27,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const finalHeaders: HeadersInit = {
     'Content-Type': 'application/json',
     ...headers,
-    // Routes protégées : envoi du JWT dans l'en-tête Authorization......................
+    // Routes protégées : envoi du JWT dans l'en-tête Authorization.....
     ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
   }
 
