@@ -130,7 +130,7 @@ export function MaterialTypesPage() {
           type="button"
           variant="primary"
           onClick={openAdd}
-          className="inline-flex items-center cursor-pointer gap-2 px-4 py-2.5"
+          className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
           disabled={loading}
         >
           Ajouter un type
@@ -211,10 +211,10 @@ export function MaterialTypesPage() {
                 placeholder="Détails sur le type de matériel"
               />
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" onClick={closeModal} disabled={loading}>
+                <Button type="button" onClick={closeModal} disabled={loading} className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60">
                   Annuler
                 </Button>
-                <Button type="submit" variant="primary" disabled={loading} className="flex items-center gap-2">
+                <Button type="submit" variant="primary" disabled={loading} className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60">
                   {editingId !== null ? 'Enregistrer' : 'Ajouter'}
                 </Button>
               </div>

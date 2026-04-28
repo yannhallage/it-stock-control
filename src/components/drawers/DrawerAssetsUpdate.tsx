@@ -83,7 +83,7 @@ export function DrawerAssetsUpdate({
         <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
             <h3 className="min-w-0 truncate text-base font-semibold text-gray-900">Modifier le matériel</h3>
-            <Button type="button" variant="default" className="shrink-0 cursor-pointer" onClick={onClose} disabled={loading}>
+              <Button type="button" variant="default" className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" onClick={onClose} disabled={loading}>
               Fermer
             </Button>
           </div>
@@ -153,10 +153,10 @@ export function DrawerAssetsUpdate({
             </div>
 
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-gray-100 bg-white px-5 py-4">
-              <Button type="button" variant="default" className="cursor-pointer" onClick={onClose} disabled={loading}>
+              <Button type="button" variant="default" className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" onClick={onClose} disabled={loading}>
                 Annuler
               </Button>
-              <Button type="submit" variant="primary" className="cursor-pointer" disabled={loading}>
+              <Button type="submit" variant="primary" className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" disabled={loading}>
                 Enregistrer
               </Button>
             </div>

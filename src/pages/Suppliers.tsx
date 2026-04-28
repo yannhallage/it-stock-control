@@ -5,6 +5,7 @@ import { Button, Input, Table } from '../components/Ui'
 import { errorMessageFromUnknown } from '../lib/errors'
 import { formatDate } from '../lib/format'
 import { useSuppliers } from '../api/hooks/useSuppliers'
+import { useImpression } from '../api/hooks/useImpression'
 import type { Supplier } from '../api/services/suppliers.service'
 
 function SearchIcon({ className }: { className?: string }) {
@@ -97,6 +98,7 @@ export function SuppliersPage() {
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
 
   const { fetchSuppliers, createSupplier, updateSupplier, deleteSupplier, loading, error: apiError } = useSuppliers()
+  const { downloadReport, loading: printLoading, error: printError } = useImpression()
 
   const filteredSuppliers = useMemo(() => {
     if (!search.trim()) return suppliers
@@ -190,15 +192,20 @@ export function SuppliersPage() {
     }
   }
 
-  const handlePrint = () => {
-    window.print()
+  const handlePrint = async () => {
+    try {
+      await downloadReport('suppliers')
+      toast.success('Rapport PDF téléchargé.')
+    } catch {
+      toast.error("Erreur lors de l'impression du rapport.")
+    }
   }
 
   return (
     <div className="space-y-6">
-      {error || apiError ? (
+      {error || apiError || printError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          {error ?? apiError}
+          {error ?? apiError ?? printError}
         </div>
       ) : null}
 
@@ -218,8 +225,9 @@ export function SuppliersPage() {
           <Button
             type="button"
             onClick={handlePrint}
-            className="inline-flex items-center cursor-pointer gap-2 px-3 py-2.5"
+            className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
             title="Imprimer"
+            disabled={printLoading}
           >
             <PrintIcon className="h-5 w-5" />
           </Button>
@@ -263,7 +271,7 @@ export function SuppliersPage() {
             type="button"
             variant="primary"
             onClick={openAdd}
-            className="inline-flex items-center cursor-pointer gap-2 px-4 py-2.5"
+            className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
             disabled={loading}
           >
             <PlusIcon className="h-5 w-5" />
@@ -434,10 +442,10 @@ export function SuppliersPage() {
                 placeholder="Adresse du fournisseur"
               />
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" onClick={closeModal} disabled={loading}>
+                <Button type="button" onClick={closeModal} disabled={loading} className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60">
                   Annuler
                 </Button>
-                <Button type="submit" variant="primary" disabled={loading} className="flex items-center gap-2">
+                <Button type="submit" variant="primary" disabled={loading} className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60">
                   {editingId !== null ? 'Enregistrer' : 'Ajouter'}
                 </Button>
               </div>

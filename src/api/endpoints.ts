@@ -39,6 +39,13 @@ export const ENDPOINTS = {
     // Atelier : réparations
     base: '/api/atelier/repairs',
   },
+  impression: {
+    // Impression des rapports PDF
+    assets: '/api/impression/printAssets',
+    assignments: '/api/impression/printAssigment',
+    suppliers: '/api/impression/printSuppliers',
+    incidents: '/api/impression/printIncidents',
+  },
   dashboard: '/api/dashboard',
 } as const
 

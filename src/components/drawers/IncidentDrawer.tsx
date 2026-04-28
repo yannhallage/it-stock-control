@@ -116,7 +116,7 @@ export function IncidentDrawer({
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
             <h3 className="text-base font-semibold text-gray-900">Déclarer une panne</h3>
-            <Button type="button" variant="default" className="cursor-pointer" onClick={onClose} disabled={loading}>
+            <Button type="button" variant="default" className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" onClick={onClose} disabled={loading}>
               Fermer
             </Button>
           </div>
@@ -143,10 +143,10 @@ export function IncidentDrawer({
             />
 
             <div className="mt-auto flex items-center justify-end gap-2 border-t border-gray-100 pt-4">
-              <Button type="button" variant="default" className="cursor-pointer" onClick={onClose} disabled={loading}>
+              <Button type="button" variant="default" className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" onClick={onClose} disabled={loading}>
                 Annuler
               </Button>
-              <Button type="submit" variant="primary" className="cursor-pointer" disabled={loading}>
+              <Button type="submit" variant="primary" className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" disabled={loading}>
                 {loading ? 'Enregistrement…' : 'Enregistrer la panne'}
               </Button>
             </div>

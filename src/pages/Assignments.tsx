@@ -4,6 +4,7 @@ import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
 import { useAssignments } from '../api/hooks/useAssignments'
+import { useImpression } from '../api/hooks/useImpression'
 import { formatDate } from '../lib/format'
 import type { Asset, Assignment } from '../types'
 import { StatusBadge } from '../components/Badge'
@@ -42,6 +43,7 @@ export function AssignmentsPage() {
     loading: assignmentsLoading,
     error: apiError,
   } = useAssignments()
+  const { downloadAssignmentReport, loading: printLoading, error: printError } = useImpression()
 
   const loading = assetsLoading || assignmentsLoading
 
@@ -136,20 +138,20 @@ export function AssignmentsPage() {
             variant="primary"
             type="button"
             onClick={() => setAssignmentDrawerOpen(true)}
-            className="cursor-pointer flex items-center gap-2"
+            className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
             disabled={loading}
           >
             Transférer / affecter
           </Button>
-          <Button onClick={load} className="cursor-pointer flex items-center gap-2" disabled={loading}>
+          <Button onClick={load} className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" disabled={loading}>
             Actualiser
           </Button>
         </div>
       </div>
 
-      {error ?? apiError ? (
+      {error ?? apiError ?? printError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          {error ?? apiError}
+          {error ?? apiError ?? printError}
         </div>
       ) : null}
 
@@ -275,10 +277,17 @@ export function AssignmentsPage() {
                   <td className="border-b border-slate-100 px-3 py-2">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Button
-                        onClick={() => window.print()}
+                        onClick={async () => {
+                          try {
+                            await downloadAssignmentReport(a.id)
+                            toast.success('Rapport PDF téléchargé.')
+                          } catch {
+                            toast.error("Erreur lors de l'impression du rapport.")
+                          }
+                        }}
                         variant="default"
                         className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
-                        disabled={loading}
+                        disabled={loading || printLoading}
                         title="Imprimer"
                         aria-label="Imprimer"
                       >
@@ -298,8 +307,14 @@ export function AssignmentsPage() {
                         }
                         variant="danger"
                         className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
-                        disabled={loading || asset?.status === 'EN_REPARATION'}
-                        title={asset?.status === 'EN_REPARATION' ? 'Matériel déjà en réparation' : 'Déclarer une panne'}
+                        disabled={loading || asset?.status === 'EN_REPARATION' || asset?.status === 'EN_PANNE'}
+                        title={
+                          asset?.status === 'EN_REPARATION'
+                            ? 'Matériel déjà en réparation'
+                            : asset?.status === 'EN_PANNE'
+                              ? 'Matériel déjà déclaré en panne'
+                              : 'Déclarer une panne'
+                        }
                       >
                         <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                           <path

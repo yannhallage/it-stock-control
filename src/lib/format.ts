@@ -16,7 +16,7 @@ export function assetStatusLabel(s: AssetStatus) {
     case 'EN_PANNE':
       return 'En Panne'
     case 'EN_REPARATION':
-      return 'En Réparation'
+      return 'Réparation'
     case 'EN_SERVICE':
       return 'En Service'
     case 'HORS_SERVICE':
