@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
+import { useImpression } from '../api/hooks/useImpression'
 import { useIncidents } from '../api/hooks/useIncidents'
 import { ReportIncidentDrawer } from '../components/drawers/ReportIncidentDrawer'
 import { formatDate } from '../lib/format'
@@ -17,6 +18,7 @@ export function IncidentsPage() {
 
   const { fetchAssets, loading: assetsLoading } = useAssets()
   const { fetchIncidents, loading: incidentsLoading, error: apiError } = useIncidents()
+  const { downloadReport, loading: printLoading, error: printError } = useImpression()
 
   const loading = assetsLoading || incidentsLoading
 
@@ -53,21 +55,37 @@ export function IncidentsPage() {
           <Button
             type="button"
             variant="primary"
-            className="cursor-pointer"
+            className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
             onClick={() => setReportDrawerOpen(true)}
             disabled={loading}
           >
             Signaler un problème
           </Button>
-          <Button onClick={load} className="cursor-pointer flex items-center gap-2" disabled={loading}>
+          <Button onClick={load} className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" disabled={loading}>
             Actualiser
+          </Button>
+          <Button
+            type="button"
+            className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
+            onClick={async () => {
+              try {
+                await downloadReport('incidents')
+                toast.success('Rapport PDF téléchargé.')
+              } catch {
+                toast.error("Erreur lors de l'impression du rapport.")
+              }
+            }}
+            disabled={loading || printLoading}
+            title="Imprimer"
+          >
+            Imprimer
           </Button>
         </div>
       </div>
 
-      {error ?? apiError ? (
+      {error ?? apiError ?? printError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          {error ?? apiError}
+          {error ?? apiError ?? printError}
         </div>
       ) : null}
 

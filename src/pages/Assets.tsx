@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
+import { useImpression } from '../api/hooks/useImpression'
 import { useSuppliers } from '../api/hooks/useSuppliers'
 import { useMaterialTypes } from '../api/hooks/useMaterialTypes'
 import { errorMessageFromUnknown } from '../lib/errors'
@@ -22,7 +23,7 @@ const statusOptions: Array<{ value: AssetStatus | ''; label: string }> = [
   { value: 'EN_STOCK', label: 'En Stock' },
   { value: 'AFFECTE', label: 'Affecté' },
   { value: 'EN_PANNE', label: 'En Panne' },
-  { value: 'EN_REPARATION', label: 'En Réparation' },
+  { value: 'EN_REPARATION', label: 'Réparation' },
   { value: 'EN_SERVICE', label: 'En Service' },
   { value: 'HORS_SERVICE', label: 'Hors Service' },
 ]
@@ -180,6 +181,7 @@ export function AssetsPage() {
   }))
 
   const { fetchAssets, createAsset, updateAsset, deleteAsset, loading, error: apiError } = useAssets()
+  const { downloadReport, loading: printLoading, error: printError } = useImpression()
   const { fetchSuppliers } = useSuppliers()
   const { fetchMaterialTypes } = useMaterialTypes()
 
@@ -401,8 +403,13 @@ export function AssetsPage() {
       ? items.find((a) => a.id === assetToDelete)?.inventoryNumber ?? 'ce matériel'
       : ''
 
-  const handlePrint = () => {
-    window.print()
+  const handlePrint = async () => {
+    try {
+      await downloadReport('assets')
+      toast.success('Rapport PDF téléchargé.')
+    } catch {
+      toast.error("Erreur lors de l'impression du rapport.")
+    }
   }
 
   return (
@@ -425,7 +432,7 @@ export function AssetsPage() {
           <Button
             variant="primary"
             onClick={() => setDrawerOpen(true)}
-            className="cursor-pointer flex items-center gap-2"
+            className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
             disabled={loading}
           >
             Ajouter un matériel
@@ -439,16 +446,16 @@ export function AssetsPage() {
               })
             }}
             disabled={loading}
-            className="cursor-pointer flex items-center gap-2"
+            className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
           >
             Actualiser
           </Button>
         </div>
       </div>
 
-      {error || apiError ? (
+      {error || apiError || printError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          {error ?? apiError}
+          {error ?? apiError ?? printError}
         </div>
       ) : null}
 
@@ -503,10 +510,15 @@ export function AssetsPage() {
             ))}
           </Select>
           <div className="flex items-end gap-2">
-            <Button onClick={handlePrint} className="cursor-pointer flex items-center gap-2" title="Imprimer">
+            <Button
+              onClick={handlePrint}
+              className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
+              title="Imprimer"
+              disabled={printLoading}
+            >
               <PrintIcon className="h-5 w-5" />
             </Button>
-            <Button onClick={load} className="cursor-pointer flex items-center gap-2" disabled={loading}>
+            <Button onClick={load} className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" disabled={loading}>
               Filtrer
             </Button>
             <Button
@@ -517,7 +529,7 @@ export function AssetsPage() {
                 setTimeout(load, 0)
               }}
               disabled={loading}
-              className="flex items-center gap-2"
+              className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
             >
               Réinitialiser
             </Button>

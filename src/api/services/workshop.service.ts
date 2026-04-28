@@ -14,6 +14,8 @@ export type RepairWithRelations = Omit<Repair, 'workshopIn' | 'cost'> & {
   workshopIn?: string
   /** Champ renvoyé par l’API (camelCase) */
   workshopEntryDate?: string
+  /** Nom du technicien ayant pris en charge la réparation */
+  technicianName?: string
   /** Coût parfois renvoyé en string par l’API */
   cost?: number | string
   incident?: Incident & { asset?: Asset }
@@ -22,6 +24,7 @@ export type RepairWithRelations = Omit<Repair, 'workshopIn' | 'cost'> & {
 export type StartRepairPayload = {
   incidentId: number
   workshopEntryDate: string
+  technicianName: string
   action?: string
   cost?: number
 }

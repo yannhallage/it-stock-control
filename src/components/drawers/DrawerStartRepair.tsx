@@ -17,6 +17,35 @@ type DrawerStartRepairProps = {
 
 const ANIMATION_MS = 220
 
+function getErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object') {
+    const withErrors = error as { message?: unknown; errors?: unknown }
+    if (Array.isArray(withErrors.errors)) {
+      const entries = withErrors.errors.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      if (entries.length) return entries.join('\n')
+    }
+    if (typeof withErrors.message === 'string' && withErrors.message.trim()) return withErrors.message
+  }
+
+  if (error instanceof Error) {
+    if (error.message.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(error.message) as { message?: unknown; errors?: unknown }
+        if (Array.isArray(parsed.errors)) {
+          const entries = parsed.errors.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+          if (entries.length) return entries.join('\n')
+        }
+        if (typeof parsed.message === 'string' && parsed.message.trim()) return parsed.message
+      } catch {
+        // Ignore parse errors and use default handling below.
+      }
+    }
+    if (error.message.trim()) return error.message
+  }
+
+  return String(error || '')
+}
+
 export function DrawerStartRepair({
   isOpen,
   onClose,
@@ -83,17 +112,17 @@ export function DrawerStartRepair({
     setSubmitting(true)
     try {
       const normalizedAction = action.trim()
-      const repairByLine = `Réparation effectuée par: ${repairBy.trim()}`
       await startRepair({
         incidentId: Number(incidentId),
         workshopEntryDate: workshopIn,
-        action: normalizedAction ? `${normalizedAction}\n${repairByLine}` : repairByLine,
+        technicianName: repairBy.trim(),
+        action: normalizedAction || undefined,
       })
       toast.success('Réparation démarrée.')
       onSuccess()
       onClose()
     } catch (err: unknown) {
-      const msg = String(err instanceof Error ? err.message : err)
+      const msg = getErrorMessage(err)
       toast.error(msg || 'Erreur lors du démarrage de la réparation.')
     } finally {
       setSubmitting(false)
@@ -124,7 +153,7 @@ export function DrawerStartRepair({
             <h3 className="text-base font-semibold text-gray-900">
               Démarrer une réparation (En Panne → En Réparation)
             </h3>
-            <Button type="button" variant="default" className="cursor-pointer" onClick={onClose} disabled={submitting}>
+            <Button type="button" variant="default" className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" onClick={onClose} disabled={submitting}>
               Fermer
             </Button>
           </div>
@@ -165,10 +194,10 @@ export function DrawerStartRepair({
               </div>
             </div>
             <div className="mt-auto flex shrink-0 items-center justify-end gap-2 border-t border-gray-100 pt-4">
-              <Button type="button" variant="default" className="cursor-pointer" onClick={onClose} disabled={submitting}>
+              <Button type="button" variant="default" className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" onClick={onClose} disabled={submitting}>
                 Annuler
               </Button>
-              <Button type="submit" variant="primary" className="cursor-pointer flex items-center gap-2" disabled={submitting}>
+              <Button type="submit" variant="primary" className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" disabled={submitting}>
                 {submitting ? 'Envoi…' : 'Passer en réparation'}
               </Button>
             </div>

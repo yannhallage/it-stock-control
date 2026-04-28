@@ -95,7 +95,7 @@ export function DrawerAssignments({
             <h3 className="min-w-0 text-base font-semibold leading-snug text-gray-900">
               Transférer un matériel du Stock vers une Direction
             </h3>
-            <Button type="button" variant="default" className="shrink-0 cursor-pointer" onClick={onClose} disabled={loading}>
+            <Button type="button" variant="default" className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" onClick={onClose} disabled={loading}>
               Fermer
             </Button>
           </div>
@@ -155,7 +155,7 @@ export function DrawerAssignments({
                     <Button
                       type="button"
                       variant="default"
-                      className="cursor-pointer text-sm"
+                      className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
                       onClick={() => setUsers([...users, ''])}
                     >
                       + Ajouter un utilisateur
@@ -169,10 +169,10 @@ export function DrawerAssignments({
             </div>
 
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-gray-100 bg-white px-5 py-4">
-              <Button type="button" variant="default" className="cursor-pointer" onClick={onClose} disabled={loading}>
+              <Button type="button" variant="default" className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" onClick={onClose} disabled={loading}>
                 Annuler
               </Button>
-              <Button type="submit" variant="primary" className="cursor-pointer flex items-center gap-2" disabled={loading}>
+              <Button type="submit" variant="primary" className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" disabled={loading}>
                 Affecter / transférer
               </Button>
             </div>

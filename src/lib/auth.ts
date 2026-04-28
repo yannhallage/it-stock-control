@@ -1,5 +1,6 @@
 const STORAGE_KEY = 'parc-info-auth'
 const SESSION_DURATION_MS = 30 * 60 * 1000 // 30 minutes
+let isAuthRedirectInProgress = false
 
 export type Session = {
   user: string
@@ -48,4 +49,22 @@ export function clearSession(): void {
 /** true si une session valide (non expirée) existe. */
 export function isAuthenticated(): boolean {
   return getSession() !== null
+}
+
+/**
+ * Invalide la session et redirige vers /login en conservant la route courante.
+ * Utilisé quand le backend renvoie 401/403.
+ */
+export function handleAuthenticationFailure(): void {
+  clearSession()
+
+  if (typeof window === 'undefined') return
+  if (isAuthRedirectInProgress) return
+
+  const { pathname, search } = window.location
+  if (pathname === '/login') return
+
+  isAuthRedirectInProgress = true
+  const redirect = encodeURIComponent(`${pathname}${search}`)
+  window.location.replace(`/login?redirect=${redirect}`)
 }

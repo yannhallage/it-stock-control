@@ -100,7 +100,7 @@ export function ReportIncidentDrawer({ isOpen, onClose, assets, onCreated }: Rep
         <div className="flex h-full min-h-0 flex-col">
           <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4">
             <h3 className="text-base font-semibold text-gray-900">Signaler un problème</h3>
-            <Button type="button" variant="default" className="cursor-pointer" onClick={onClose} disabled={loading}>
+            <Button type="button" variant="default" className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" onClick={onClose} disabled={loading}>
               Fermer
             </Button>
           </div>
@@ -146,10 +146,10 @@ export function ReportIncidentDrawer({ isOpen, onClose, assets, onCreated }: Rep
             </p>
 
             <div className="mt-auto flex shrink-0 items-center justify-end gap-2 border-t border-gray-100 pt-4">
-              <Button type="button" variant="default" className="cursor-pointer" onClick={onClose} disabled={loading}>
+              <Button type="button" variant="default" className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" onClick={onClose} disabled={loading}>
                 Annuler
               </Button>
-              <Button type="submit" variant="primary" className="cursor-pointer" disabled={loading}>
+              <Button type="submit" variant="primary" className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" disabled={loading}>
                 {loading ? 'Enregistrement…' : 'Enregistrer la panne'}
               </Button>
             </div>
