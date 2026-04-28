@@ -1,5 +1,5 @@
 import { ENDPOINTS, buildUrl } from '../endpoints'
-import { getSession } from '../../lib/auth'
+import { getSession, handleAuthenticationFailure } from '../../lib/auth'
 
 async function downloadPdf(path: string): Promise<Blob> {
   const session = getSession()
@@ -15,6 +15,9 @@ async function downloadPdf(path: string): Promise<Blob> {
   })
 
   if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      handleAuthenticationFailure()
+    }
     const message = `Erreur API (${res.status})`
     throw new Error(message)
   }

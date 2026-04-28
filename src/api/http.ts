@@ -1,5 +1,5 @@
 import { buildUrl } from './endpoints'
-import { getSession } from '../lib/auth'
+import { getSession, handleAuthenticationFailure } from '../lib/auth'
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
@@ -43,6 +43,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const responseBody = isJson ? await res.json().catch(() => null) : await res.text().catch(() => null)
 
   if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      handleAuthenticationFailure()
+    }
+
     const message =
       typeof responseBody === 'object' &&
       responseBody !== null &&
