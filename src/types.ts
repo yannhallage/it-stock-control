@@ -1,5 +1,5 @@
 export type AssetStatus =
-  | 'EN_STOCK'
+  | 'EN_STOCK_NON_AFFECTE'
   | 'AFFECTE'
   | 'EN_PANNE'
   | 'EN_REPARATION'

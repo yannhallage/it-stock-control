@@ -57,7 +57,7 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
             aria-label="Fermer"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,12 +108,12 @@ export function ConfirmModal({
       closeOnBackdrop={!loading}
       footer={
         <>
-          <Button type="button" variant="default" onClick={onClose} disabled={loading}>
+          <Button type="button" variant="default" className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" onClick={onClose} disabled={loading}>
             {cancelLabel}
           </Button>
-          <Button type="button" variant={variant} onClick={onConfirm} disabled={loading} className="flex items-center gap-2">
+          <Button type="button" variant={variant} onClick={onConfirm} disabled={loading} className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60">
             {loading ? <BeatLoader size={8} color="white" /> : null}
-            {loading ? 'En cours…' : confirmLabel}
+            {loading ? '' : confirmLabel}
           </Button>
         </>
       }

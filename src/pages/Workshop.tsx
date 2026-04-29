@@ -124,20 +124,20 @@ export function WorkshopPage() {
             const horsServiceDisabled = loading || isAlreadyInService || isAlreadyOutOfService
             return (
               <tr key={r.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-900">
+                <td className="px-4 py-3 font-medium text-[13px]">
                   {asset ? `${asset.inventoryNumber} — ${asset.brand} ${asset.model}` : `#${r.incidentId}`}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 text-[13px]">
                   {asset ? <StatusBadge status={asset.status} /> : '—'}
                 </td>
-                <td className="px-4 py-3 text-gray-600">
+                <td className="px-4 py-3 text-gray-600 text-[13px]">
                   #{r.incidentId} — {incident?.department ?? '—'}
                 </td>
-                <td className="px-4 py-3 text-gray-600">
+                <td className="px-4 py-3 text-gray-600 text-[13px]">
                   {formatDate(r.workshopEntryDate ?? r.workshopIn) || '—'}
                 </td>
-                <td className="px-4 py-3 text-gray-600">{r.technicianName || '—'}</td>
-                <td className="px-4 py-3 text-gray-600">{r.action}</td>
+                <td className="px-4 py-3 text-gray-600 text-[13px]">{r.technicianName || '—'}</td>
+                <td className="px-4 py-3 text-gray-600 text-[13px]">{r.action}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Button
