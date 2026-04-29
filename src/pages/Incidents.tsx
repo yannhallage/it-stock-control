@@ -102,17 +102,17 @@ export function IncidentsPage() {
             const a = assetsById.get(it.assetId)
             return (
               <tr key={it.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium text-gray-900">
+                <td className="px-4 py-3 font-medium text-[13px]">
                   {a?.inventoryNumber ?? `#${it.assetId}`}
                 </td>
-                <td className="px-4 py-3 text-gray-600">
+                <td className="px-4 py-3 text-gray-600 text-[13px]">
                   {a ? `${a.type} — ${a.brand} ${a.model}` : '—'}
                 </td>
-                <td className="px-4 py-3 text-gray-600">{it.department}</td>
-                <td className="px-4 py-3 text-gray-600">
+                <td className="px-4 py-3 text-gray-600 text-[13px]">{it.department}</td>
+                <td className="px-4 py-3 text-gray-600 text-[13px]">
                   {formatDate(it.reportedAt)}
                 </td>
-                <td className="px-4 py-3 text-gray-600">{it.description}</td>
+                <td className="px-4 py-3 text-gray-600 text-[13px]">{it.description}</td>
               </tr>
             )
           })}

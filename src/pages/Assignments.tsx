@@ -60,7 +60,7 @@ export function AssignmentsPage() {
 
   const assignable = useMemo(() => {
     return items
-      .filter((a) => a.status === 'EN_STOCK')
+      .filter((a) => a.status === 'EN_STOCK_NON_AFFECTE')
       .slice()
       .sort((a, b) => a.inventoryNumber.localeCompare(b.inventoryNumber, 'fr', { numeric: true }))
   }, [items])
@@ -180,7 +180,7 @@ export function AssignmentsPage() {
               onChange={(e) => setStatusFilter(e.target.value as '' | Asset['status'])}
             >
               <option value="">Tous</option>
-              <option value="EN_STOCK">EN_STOCK</option>
+              <option value="EN_STOCK_NON_AFFECTE">EN_STOCK_NON_AFFECTE</option>
               <option value="AFFECTE">AFFECTE</option>
               <option value="EN_SERVICE">EN_SERVICE</option>
               <option value="EN_PANNE">EN_PANNE</option>
@@ -239,16 +239,16 @@ export function AssignmentsPage() {
               const names = getAssignmentUserNames(a)
               return (
                 <tr key={a.id} className="hover:bg-gray-50">
-                  <td className="border-b border-slate-100 px-3 py-2 font-medium text-gray-900">
+                  <td className="border-b border-slate-100 px-3 py-2 font-medium text-[13px]">
                     {asset?.inventoryNumber ?? '—'}
                   </td>
-                  <td className="border-b border-slate-100 px-3 py-2">
+                  <td className="border-b border-slate-100 px-3 py-2 text-[13px]">
                     {asset ? `${asset.type} — ${asset.brand} ${asset.model}` : '—'}
                   </td>
                   <td className="border-b border-slate-100 px-3 py-2">
                     {asset ? <StatusBadge status={asset.status} /> : '—'}
                   </td>
-                  <td className="border-b border-slate-100 px-3 py-2">{a.department}</td>
+                  <td className="border-b border-slate-100 px-3 py-2 text-[13px]">{a.department}</td>
                   <td className="border-b border-slate-100 px-3 py-2">
                     {(() => {
                       if (!names.length) return '—'

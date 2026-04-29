@@ -20,7 +20,7 @@ import { Button, Card, Input, PageTitle, Select, Table } from '../components/Ui'
 
 const statusOptions: Array<{ value: AssetStatus | ''; label: string }> = [
   { value: '', label: 'Tous' },
-  { value: 'EN_STOCK', label: 'En Stock' },
+  { value: 'EN_STOCK_NON_AFFECTE', label: 'Stock/Non affecté' },
   { value: 'AFFECTE', label: 'Affecté' },
   { value: 'EN_PANNE', label: 'En Panne' },
   { value: 'EN_REPARATION', label: 'Réparation' },
@@ -552,18 +552,27 @@ export function AssetsPage() {
         >
           {items.map((a) => (
             <tr key={a.id} className="hover:bg-gray-50">
-              <td className="px-4 py-3 font-medium text-gray-900">
+              <td className="px-4 py-3 font-medium text-gray-900 text-[13px]">
                 {a.inventoryNumber}
               </td>
-              <td className="px-4 py-3 text-gray-600">{serialNumberValue(a) || '—'}</td>
+              <td className="px-4 py-3 text-gray-600 text-[13px]">{serialNumberValue(a) || '—'}</td>
               <td className="px-4 py-3 text-gray-600">{a.type}</td>
               <td className="px-4 py-3 text-gray-600">{a.brand}</td>
               <td className="px-4 py-3 text-gray-600">{a.model}</td>
               <td className="px-4 py-3 text-gray-600">{formatDate(a.entryDate)}</td>
-              <td className="px-4 py-3 text-gray-600">{warrantyLabel(a)}</td>
+              <td className="px-4 py-3 text-gray-600 text-[13px]">{warrantyLabel(a)}</td>
               <td className="px-4 py-3 text-gray-600">{a.supplier}</td>
               <td className="px-4 py-3 text-gray-600">
-                <StatusBadge status={a.status} />
+                {a.status === 'EN_STOCK_NON_AFFECTE' ? (
+                  <span
+                    className="inline-flex items-center rounded-full  px-2 py-0.5 text-xs font-medium text-[#64748b]"
+                    style={{ backgroundColor: '#f3f3f3' }}
+                  >
+                    En stock/non affecté
+                  </span>
+                ) : (
+                  <StatusBadge status={a.status} />
+                )}
               </td>
               <td className="px-4 py-3">
                 <div className="flex items-center gap-1">
