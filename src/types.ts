@@ -5,7 +5,7 @@ export type AssetStatus =
   | 'EN_REPARATION'
   | 'EN_SERVICE'
   | 'HORS_SERVICE'
-
+// chchhchch
 export type Asset = {
   id: number
   inventoryNumber: string
