@@ -84,7 +84,7 @@ function computeDashboard(): DashboardStats {
   return {
     countsByStatus,
     stockVsAssigned: {
-      enStock: db.assets.filter((a) => a.status === 'EN_STOCK').length,
+      enStock: db.assets.filter((a) => a.status === 'EN_STOCK_NON_AFFECTE').length,
       affecte: db.assets.filter((a) => a.status === 'AFFECTE').length,
     },
     topDepartmentsIncidents,
@@ -128,7 +128,6 @@ function assetDetails(assetId: number) {
 }
 
 function listAssets(url: URL) {
-  const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
   const type = (url.searchParams.get('type') ?? '').trim()
   const status = (url.searchParams.get('status') ?? '').trim()
   const withParam = (url.searchParams.get('with') ?? '').trim()
@@ -137,12 +136,6 @@ function listAssets(url: URL) {
   let items = db.assets.slice()
   if (type) items = items.filter((a) => a.type === type)
   if (status) items = items.filter((a) => a.status === status)
-  if (q) {
-    items = items.filter((a) => {
-      const hay = `${a.inventoryNumber} ${a.brand} ${a.model} ${a.supplier} ${a.type}`.toLowerCase()
-      return hay.includes(q)
-    })
-  }
 
   items.sort((a, b) => a.inventoryNumber.localeCompare(b.inventoryNumber))
 
@@ -249,7 +242,7 @@ function handlePostAssets(init?: RequestInit) {
     entryDate: input.entryDate,
     warrantyMonths: Number.isFinite(Number(input.warrantyMonths)) ? Number(input.warrantyMonths) : undefined,
     supplier: input.supplier,
-    status: 'EN_STOCK',
+    status: 'EN_STOCK_NON_AFFECTE',
     createdAt: nowIso(),
     updatedAt: nowIso(),
   }
@@ -362,7 +355,7 @@ function handlePostEndAssignment(assignmentId: number) {
   assignment.endDate = todayIsoDate()
   const asset = db.assets.find((a) => a.id === assignment.assetId)
   if (asset) {
-    setAssetStatus(asset, 'EN_STOCK')
+    setAssetStatus(asset, 'EN_STOCK_NON_AFFECTE')
     pushHistory(asset.id, 'ASSIGNMENT_ENDED', { assignmentId, endDate: assignment.endDate })
   }
   return { ok: true as const }
