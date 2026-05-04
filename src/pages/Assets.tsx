@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
+import { useAssignments } from '../api/hooks/useAssignments'
 import { useImpression } from '../api/hooks/useImpression'
 import { useSuppliers } from '../api/hooks/useSuppliers'
 import { useMaterialTypes } from '../api/hooks/useMaterialTypes'
@@ -15,6 +16,7 @@ import type { MaterialType } from '../api/services/material-types.service'
 import { StatusBadge } from '../components/Badge'
 import { DrawerAssets, type AssetCreateFormState } from '../components/drawers/DrawerAssets'
 import { DrawerAssetsUpdate } from '../components/drawers/DrawerAssetsUpdate'
+import { DrawerAssignments } from '../components/drawers/DrawerAssignments'
 import { ConfirmModal } from '../components/Modal'
 import { Button, Card, Input, PageTitle, Select, Table } from '../components/Ui'
 
@@ -60,6 +62,16 @@ function escapeRegex(s: string): string {
 
 function serialNumberValue(asset: Asset): string {
   return (asset.serialNumber ?? asset.serial_number ?? '').trim()
+}
+
+/** Recherche locale (hors API) sur les champs affichés dans la liste. */
+function assetMatchesQuery(a: Asset, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  const hay = [a.inventoryNumber, serialNumberValue(a), a.type, a.brand, a.model, a.supplier]
+    .join(' ')
+    .toLowerCase()
+  return hay.includes(q)
 }
 
 function warrantyLabel(asset: Asset): string {
@@ -140,6 +152,19 @@ function TrashIcon({ className }: { className?: string }) {
   )
 }
 
+function TransferAssignIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+      />
+    </svg>
+  )
+}
+
 export function AssetsPage() {
   const [items, setItems] = useState<Asset[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
@@ -168,6 +193,12 @@ export function AssetsPage() {
   const [assetToDelete, setAssetToDelete] = useState<number | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
+  const [assignmentDrawerOpen, setAssignmentDrawerOpen] = useState(false)
+  const [assignAssetId, setAssignAssetId] = useState<number | ''>('')
+  const [assignDepartment, setAssignDepartment] = useState('')
+  const [assignUsers, setAssignUsers] = useState<string[]>([''])
+  const [assignStartDate, setAssignStartDate] = useState(() => new Date().toISOString().slice(0, 10))
+
   const [assetEditingId, setAssetEditingId] = useState<number | null>(null)
   const [updateForm, setUpdateForm] = useState<AssetCreateFormState>(() => ({
     inventoryNumber: '',
@@ -181,6 +212,7 @@ export function AssetsPage() {
   }))
 
   const { fetchAssets, createAsset, updateAsset, deleteAsset, loading, error: apiError } = useAssets()
+  const { createAssignmentForAsset, loading: assignmentLoading, error: assignmentError } = useAssignments()
   const { downloadReport, loading: printLoading, error: printError } = useImpression()
   const { fetchSuppliers } = useSuppliers()
   const { fetchMaterialTypes } = useMaterialTypes()
@@ -196,9 +228,25 @@ export function AssetsPage() {
     return Array.from(s).sort((a, b) => a.localeCompare(b))
   }, [items])
 
+  const assignable = useMemo(() => {
+    return allAssets
+      .filter((a) => a.status === 'EN_STOCK_NON_AFFECTE')
+      .slice()
+      .sort((a, b) => a.inventoryNumber.localeCompare(b.inventoryNumber, 'fr', { numeric: true }))
+      .map((a) => ({
+        id: a.id,
+        inventoryNumber: a.inventoryNumber,
+        type: a.type,
+        brand: a.brand,
+        model: a.model,
+      }))
+  }, [allAssets])
+
+  const filteredItems = useMemo(() => items.filter((a) => assetMatchesQuery(a, q)), [items, q])
+
   function load() {
     setError(null)
-    fetchAssets({ q, type, status })
+    fetchAssets({ type, status })
       .then(setItems)
       .catch((e) => {
         const msg = String(e?.message ?? e)
@@ -379,6 +427,47 @@ export function AssetsPage() {
     }
   }
 
+  function openAssignmentDrawerForAsset(assetId: number) {
+    setAssignAssetId(assetId)
+    setAssignDepartment('')
+    setAssignUsers([''])
+    setAssignStartDate(new Date().toISOString().slice(0, 10))
+    setAssignmentDrawerOpen(true)
+  }
+
+  async function onCreateAssignment(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    if (!assignAssetId) {
+      toast.warning('Veuillez sélectionner un matériel.')
+      return
+    }
+    try {
+      const names = assignUsers.map((u) => u.trim()).filter(Boolean)
+      if (!names.length) {
+        toast.warning('Veuillez saisir au moins un utilisateur.')
+        return
+      }
+      await createAssignmentForAsset(Number(assignAssetId), {
+        department: assignDepartment,
+        user: names.length === 1 ? { name: names[0] } : { names },
+        startDate: assignStartDate,
+      })
+      toast.success('Affectation créée avec succès.')
+      setAssignAssetId('')
+      setAssignDepartment('')
+      setAssignUsers([''])
+      setAssignStartDate(new Date().toISOString().slice(0, 10))
+      setAssignmentDrawerOpen(false)
+      await loadAllForSeq()
+      load()
+    } catch (err: unknown) {
+      const msg = errorMessageFromUnknown(err, "Erreur lors de l'affectation.")
+      setError(msg)
+      toast.error(msg || "Erreur lors de l'affectation.")
+    }
+  }
+
   async function confirmDelete() {
     if (assetToDelete == null) return
     setError(null)
@@ -453,9 +542,9 @@ export function AssetsPage() {
         </div>
       </div>
 
-      {error || apiError || printError ? (
+      {error || apiError || printError || assignmentError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          {error ?? apiError ?? printError}
+          {error ?? apiError ?? printError ?? assignmentError}
         </div>
       ) : null}
 
@@ -482,11 +571,27 @@ export function AssetsPage() {
         onSubmit={onUpdate}
       />
 
+      <DrawerAssignments
+        isOpen={assignmentDrawerOpen}
+        onClose={() => setAssignmentDrawerOpen(false)}
+        assignable={assignable}
+        assetId={assignAssetId}
+        setAssetId={setAssignAssetId}
+        department={assignDepartment}
+        setDepartment={setAssignDepartment}
+        users={assignUsers}
+        setUsers={setAssignUsers}
+        startDate={assignStartDate}
+        setStartDate={setAssignStartDate}
+        loading={loading || assignmentLoading}
+        onSubmit={onCreateAssignment}
+      />
+
       <Card title="Liste du matériel">
         <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4">
           <Input
-            label="Recherche (inventaire, marque, modèle, fournisseur)"
-            placeholder="Ex: PC0002, PC00303, HP…"
+            label="Recherche"
+            placeholder="Inventaire, n° série, type, marque, modèle, fournisseur…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -550,7 +655,7 @@ export function AssetsPage() {
             'Actions',
           ]}
         >
-          {items.map((a) => (
+          {filteredItems.map((a) => (
             <tr key={a.id} className="hover:bg-gray-50">
               <td className="px-4 py-3 font-medium text-gray-900 text-[13px]">
                 {a.inventoryNumber}
@@ -595,6 +700,26 @@ export function AssetsPage() {
                   </button>
                   <button
                     type="button"
+                    className={`inline-flex items-center justify-center rounded p-1.5 ${
+                      a.status === 'EN_STOCK_NON_AFFECTE' && !loading
+                        ? 'cursor-pointer text-gray-600 hover:bg-sky-50 hover:text-sky-800'
+                        : 'cursor-not-allowed text-gray-300'
+                    } ${loading ? 'pointer-events-none opacity-50' : ''}`}
+                    title={
+                      a.status === 'EN_STOCK_NON_AFFECTE'
+                        ? 'Transférer / affecter vers une direction'
+                        : 'Réservé au matériel en stock non affecté'
+                    }
+                    aria-label="Transférer ou affecter le matériel"
+                    disabled={a.status !== 'EN_STOCK_NON_AFFECTE' || loading}
+                    onClick={() =>
+                      !loading && a.status === 'EN_STOCK_NON_AFFECTE' && openAssignmentDrawerForAsset(a.id)
+                    }
+                  >
+                    <TransferAssignIcon className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
                     className={`inline-flex items-center cursor-pointer justify-center rounded p-1.5 text-gray-600 hover:bg-red-50 hover:text-red-600 ${loading ? 'pointer-events-none opacity-50' : ''}`}
                     title="Supprimer"
                     aria-label="Supprimer le matériel"
@@ -606,13 +731,15 @@ export function AssetsPage() {
               </td>
             </tr>
           ))}
-          {!items.length ? (
+          {!filteredItems.length ? (
             <tr>
               <td className="px-4 py-8 text-center text-gray-500" colSpan={10}>
                 {loading ? (
                   <span className="inline-flex w-full items-center justify-center" aria-label="Chargement">
                     <BeatLoader size={10} color="var(--color-primary)" />
                   </span>
+                ) : items.length ? (
+                  'Aucun matériel ne correspond à la recherche.'
                 ) : (
                   'Aucun matériel.'
                 )}
