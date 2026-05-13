@@ -36,19 +36,28 @@ export function IncidentDrawer({
 
   useEffect(() => {
     if (isOpen) {
-      setMounted(true)
-      const id = window.setTimeout(() => setVisible(true), 10)
-      return () => window.clearTimeout(id)
+      const mountId = window.setTimeout(() => setMounted(true), 0)
+      const visibleId = window.setTimeout(() => setVisible(true), 10)
+      return () => {
+        window.clearTimeout(mountId)
+        window.clearTimeout(visibleId)
+      }
     }
-    setVisible(false)
-    const id = window.setTimeout(() => setMounted(false), ANIMATION_MS)
-    return () => window.clearTimeout(id)
+    const hideId = window.setTimeout(() => setVisible(false), 0)
+    const unmountId = window.setTimeout(() => setMounted(false), ANIMATION_MS)
+    return () => {
+      window.clearTimeout(hideId)
+      window.clearTimeout(unmountId)
+    }
   }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) return
-    setDescription('')
-    setReportedAt(new Date().toISOString().slice(0, 10))
+    const id = window.setTimeout(() => {
+      setDescription('')
+      setReportedAt(new Date().toISOString().slice(0, 10))
+    }, 0)
+    return () => window.clearTimeout(id)
   }, [isOpen, assetId])
 
   useEffect(() => {
