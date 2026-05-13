@@ -9,41 +9,41 @@ import type { AssetDetailsApi, RepairFromApi } from '../types'
 import { StatusBadge } from '../components/Badge'
 import { Button, Card, PageTitle } from '../components/Ui'
 
-function AssignIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h12" />
-    </svg>
-  )
-}
+// function AssignIcon({ className }: { className?: string }) {
+//   return (
+//     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+//       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+//       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h12" />
+//     </svg>
+//   )
+// }
 
-function IncidentIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01" />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-      />
-    </svg>
-  )
-}
+// function IncidentIcon({ className }: { className?: string }) {
+//   return (
+//     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+//       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01" />
+//       <path
+//         strokeLinecap="round"
+//         strokeLinejoin="round"
+//         strokeWidth={2}
+//         d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+//       />
+//     </svg>
+//   )
+// }
 
-function RepairIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M14.7 6.3a4 4 0 01-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.1 2.1-3-3 2.1-2.1z"
-      />
-    </svg>
-  )
-}
+// function RepairIcon({ className }: { className?: string }) {
+//   return (
+//     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+//       <path
+//         strokeLinecap="round"
+//         strokeLinejoin="round"
+//         strokeWidth={2}
+//         d="M14.7 6.3a4 4 0 01-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.1 2.1-3-3 2.1-2.1z"
+//       />
+//     </svg>
+//   )
+// }
 
 function RepairBlock({ repair }: { repair: RepairFromApi }) {
   return (
