@@ -8,6 +8,7 @@ import { AssignmentsPage } from './pages/Assignments'
 import { IncidentsPage } from './pages/Incidents'
 import { WorkshopPage } from './pages/Workshop'
 import { ScreenLoansPage } from './pages/ScreenLoans'
+import { MachinesStatsPage } from './pages/MachinesStats'
 import { AssetDetailsPage } from './pages/AssetDetails'
 import { SuppliersPage } from './pages/Suppliers'
 import { MaterialTypesPage } from './pages/MaterialTypes'
@@ -38,6 +39,7 @@ export default function App() {
               <Route path="/atelier" element={<WorkshopPage />} />
               <Route path="/emprunts-materiel" element={<ScreenLoansPage />} />
               <Route path="/emprunts-ecrans" element={<Navigate to="/emprunts-materiel" replace />} />
+              <Route path="/statistiques-machines" element={<MachinesStatsPage />} />
               <Route path="/fournisseurs" element={<SuppliersPage />} />
               <Route path="/types-materiel" element={<MaterialTypesPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />

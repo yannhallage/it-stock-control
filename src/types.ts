@@ -128,6 +128,19 @@ export type DashboardApiResponse = {
   materiels_par_type: Array<{ type: string; count: number }>
 }
 
+export type MachinesStatsGranularity = 'week' | 'month' | 'year'
+
+export type MachinesStatsPoint = {
+  periodStart: string
+  assetsCreated: number
+  assignmentsCreated: number
+  loansCreated: number
+  loansReturned: number
+  repairsStarted: number
+  repairsFinished: number
+  totalActivity: number
+}
+
 /** Réponse de l’API GET /api/assets/:id (détail + historique + incidents) */
 export type AssetDetailsApi = Asset & {
   history: HistoryEvent[]
