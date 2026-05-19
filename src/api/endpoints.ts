@@ -39,6 +39,10 @@ export const ENDPOINTS = {
     // Atelier : réparations
     base: '/api/atelier/repairs',
   },
+  screenLoans: {
+    // Gestion des emprunts de matériel
+    base: '/api/screen-loans',
+  },
   impression: {
     // Impression des rapports PDF
     assets: '/api/impression/printAssets',

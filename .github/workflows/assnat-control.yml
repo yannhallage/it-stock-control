@@ -1,0 +1,104 @@
+# CI : build de l'image Docker du client (frontend) et publication sur Docker Hub.
+name: assnat-control
+
+# Déclenché uniquement sur les branches de livraison (adapter la liste si besoin).
+on:
+  push:
+    branches: [master]
+
+# Moindre privilège : le token du workflow ne peut que lire le dépôt.
+permissions:
+  contents: read
+  
+# Évite les courses : un nouveau push sur la même branche annule le run précédent.
+concurrency:
+  group: assnat-control-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Nom du dépôt Docker Hub : <DOCKER_USERNAME>/client
+  IMAGE_NAME: assnat-control
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    # Limite la durée du job au cas où le build ou le réseau bloquent.
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Bonnes pratiques Dockerfile (anti-patterns, sécurité de base).
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+
+      # Même version majeure que dans le Dockerfile (node:20-alpine).
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      # Install reproductible ; doit correspondre au package-lock.json.
+      - name: Install dependencies
+        run: npm ci
+
+      # Échec rapide avant Docker si le code ne respecte pas ESLint.
+      - name: Lint
+        run: npm run lint
+
+      # Buildx : cache GHA et builds plus avancés que le docker build classique.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Secrets à définir dans GitHub : Settings → Secrets → Actions.
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Génère les tags (latest + sha du commit) et les labels OCI standard.
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha
+
+      # Image multi-couches avec cache entre les runs (accélère les builds suivants).
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Binaire Trivy via setup-trivy v0.2.6 (version recommandée) ; trivy-action saute son install interne.
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@v0.2.6
+        with:
+          version: v0.69.3
+          cache: true
+
+      # Scan de vulnérabilités sur l'image poussée ; exit-code 0 = informatif seulement.
+      # Pour bloquer la CI sur les failles : exit-code: "1" + filtre severity selon la politique.
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          skip-setup-trivy: "true"
+          image-ref: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+          exit-code: "0"
+          format: table
+          vuln-type: os,library
+
+
+          # ICI, AJOUTER LES STEPS POUR LE BUILD DE L'IMAGE DOCKER

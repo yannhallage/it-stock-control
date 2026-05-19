@@ -9,53 +9,76 @@ import type { AssetDetailsApi, RepairFromApi } from '../types'
 import { StatusBadge } from '../components/Badge'
 import { Button, Card, PageTitle } from '../components/Ui'
 
-function AssignIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h12" />
-    </svg>
-  )
+// function AssignIcon({ className }: { className?: string }) {
+//   return (
+//     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+//       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+//       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h12" />
+//     </svg>
+//   )
+// }
+
+// function IncidentIcon({ className }: { className?: string }) {
+//   return (
+//     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+//       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01" />
+//       <path
+//         strokeLinecap="round"
+//         strokeLinejoin="round"
+//         strokeWidth={2}
+//         d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+//       />
+//     </svg>
+//   )
+// }
+
+// function RepairIcon({ className }: { className?: string }) {
+//   return (
+//     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+//       <path
+//         strokeLinecap="round"
+//         strokeLinejoin="round"
+//         strokeWidth={2}
+//         d="M14.7 6.3a4 4 0 01-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.1 2.1-3-3 2.1-2.1z"
+//       />
+//     </svg>
+//   )
+// }
+
+function getRepairExitDate(repair: RepairFromApi) {
+  return repair.workshopExitDate ?? repair.workshopOut
 }
 
-function IncidentIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01" />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-      />
-    </svg>
-  )
-}
-
-function RepairIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M14.7 6.3a4 4 0 01-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 005.4-5.4l-2.1 2.1-3-3 2.1-2.1z"
-      />
-    </svg>
-  )
+function repairOutcomeLabel(outcome: RepairFromApi['outcome']) {
+  switch (outcome) {
+    case 'EN_SERVICE':
+      return 'En service'
+    case 'HORS_SERVICE':
+      return 'Hors service'
+    default:
+      return '—'
+  }
 }
 
 function RepairBlock({ repair }: { repair: RepairFromApi }) {
+  const workshopExitDate = getRepairExitDate(repair)
+
   return (
     <div className="rounded border border-gray-200 bg-gray-50 p-2 text-xs">
       <div className="flex items-center justify-between">
         <span className="font-semibold">#{repair.id} — {repair.status}</span>
         <span>
-          {formatDate(repair.workshopEntryDate)} → {repair.outcome ?? '—'}
+          Sortie atelier: {formatDate(workshopExitDate) || 'En atelier'}
         </span>
       </div>
+      <div className="mt-2 grid gap-1 sm:grid-cols-2">
+        <span>Entrée atelier: {formatDate(repair.workshopEntryDate) || '—'}</span>
+        <span>Sortie atelier: {formatDate(workshopExitDate) || 'En atelier'}</span>
+        <span>Résultat: {repairOutcomeLabel(repair.outcome)}</span>
+        <span>Coût: {repair.cost != null ? repair.cost.toFixed(2) : '—'}</span>
+      </div>
       <div className="mt-1">
-        Action: {repair.action} • Coût: {repair.cost != null ? repair.cost.toFixed(2) : '—'}
+        Action: {repair.action || '—'}
       </div>
     </div>
   )
@@ -253,7 +276,7 @@ export function AssetDetailsPage() {
 
   const allRepairs = data.incidentsWithRepairs.flatMap((incident) => incident.repairs)
   const openIncidents = data.incidentsWithRepairs.filter((incident) => incident.status !== 'CLOS').length
-  const ongoingRepairs = allRepairs.filter((repair) => repair.status !== 'FINISHED').length
+  const ongoingRepairs = allRepairs.filter((repair) => repair.status === 'EN_COURS').length
   const totalRepairCost = allRepairs.reduce((sum, repair) => sum + (repair.cost ?? 0), 0)
 
   const timelineContent = (

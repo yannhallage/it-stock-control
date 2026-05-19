@@ -11,6 +11,25 @@ import { StatusBadge } from '../components/Badge'
 import { DrawerStartRepair } from '../components/drawers/DrawerStartRepair'
 import { Button, Card, PageTitle, Table } from '../components/Ui'
 
+function getWorkshopEntryDate(repair: RepairWithRelations) {
+  return repair.workshopEntryDate ?? repair.workshopIn
+}
+
+function getWorkshopExitDate(repair: RepairWithRelations) {
+  return repair.workshopExitDate ?? repair.workshopOut
+}
+
+function repairOutcomeLabel(outcome: RepairWithRelations['outcome']) {
+  switch (outcome) {
+    case 'EN_SERVICE':
+      return 'En service'
+    case 'HORS_SERVICE':
+      return 'Hors service'
+    default:
+      return 'Clôturée'
+  }
+}
+
 export function WorkshopPage() {
   const [assets, setAssets] = useState<Asset[]>([])
   const [incidents, setIncidents] = useState<Incident[]>([])
@@ -41,7 +60,7 @@ export function WorkshopPage() {
     Promise.all([
       fetchAssets(),
       fetchIncidents({ status: 'OUVERT' }),
-      fetchRepairs({ status: 'EN_COURS' }),
+      fetchRepairs(),
     ])
       .then(([a, i, r]) => {
         setAssets(a ?? [])
@@ -113,11 +132,13 @@ export function WorkshopPage() {
         startRepair={startRepair}
       />
 
-      <Card title="Réparations en cours (alertes)">
-        <Table columns={['Matériel', 'État', 'Incident', 'Entrée atelier', 'Technicien', 'Action', 'Clôture']}>
+      <Card title="Réparations atelier">
+        <Table columns={['Matériel', 'État', 'Incident', 'Entrée atelier', 'Sortie atelier', 'Technicien', 'Action', 'Clôture']}>
           {repairs.map((r) => {
             const incident = r.incident
             const asset = r.incident?.asset ?? (r.incident ? assetsById.get(r.incident.assetId) : undefined)
+            const workshopExitDate = getWorkshopExitDate(r)
+            const isClosed = r.status === 'TERMINE'
             const isAlreadyInService = asset?.status === 'EN_SERVICE'
             const isAlreadyOutOfService = asset?.status === 'HORS_SERVICE'
             const enServiceDisabled = loading || isAlreadyInService
@@ -134,64 +155,73 @@ export function WorkshopPage() {
                   #{r.incidentId} — {incident?.department ?? '—'}
                 </td>
                 <td className="px-4 py-3 text-gray-600 text-[13px]">
-                  {formatDate(r.workshopEntryDate ?? r.workshopIn) || '—'}
+                  {formatDate(getWorkshopEntryDate(r)) || '—'}
+                </td>
+                <td className="px-4 py-3 text-gray-600 text-[13px]">
+                  {formatDate(workshopExitDate) || (isClosed ? '—' : 'En atelier')}
                 </td>
                 <td className="px-4 py-3 text-gray-600 text-[13px]">{r.technicianName || '—'}</td>
                 <td className="px-4 py-3 text-gray-600 text-[13px]">{r.action}</td>
                 <td className="px-4 py-3">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Button
-                      className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
-                      onClick={() => {
-                        if (isAlreadyInService) return
-                        handleCloseRepair(r.id, 'EN_SERVICE')
-                      }}
-                      variant="default"
-                      disabled={enServiceDisabled}
-                      title={isAlreadyInService ? 'Aucune action possible: matériel déjà en service' : 'Marquer en service'}
-                    >
-                      <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                        <path
-                          fillRule="evenodd"
-                          d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.24 7.3a1 1 0 0 1-1.43-.003l-3.75-3.8a1 1 0 1 1 1.423-1.404l3.039 3.077 6.532-6.584a1 1 0 0 1 1.42 0Z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      En service
-                    </Button>
-                    <Button
-                      className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
-                      onClick={() => {
-                        if (isAlreadyInService || isAlreadyOutOfService) return
-                        handleCloseRepair(r.id, 'HORS_SERVICE')
-                      }}
-                      variant="danger"
-                      disabled={horsServiceDisabled}
-                      title={
-                        isAlreadyInService
-                          ? 'Aucune action possible: matériel déjà en service'
-                          : isAlreadyOutOfService
-                            ? 'Aucune action possible: matériel déjà hors service'
-                            : 'Marquer hors service'
-                      }
-                    >
-                      <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                        <path
-                          fillRule="evenodd"
-                          d="M4.293 4.293a1 1 0 0 1 1.414 0L10 8.586l4.293-4.293a1 1 0 1 1 1.414 1.414L11.414 10l4.293 4.293a1 1 0 0 1-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 0 1-1.414-1.414L8.586 10 4.293 5.707a1 1 0 0 1 0-1.414Z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      Hors service
-                    </Button>
-                  </div>
+                  {isClosed ? (
+                    <span className="inline-flex rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
+                      {repairOutcomeLabel(r.outcome)}
+                    </span>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Button
+                        className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
+                        onClick={() => {
+                          if (isAlreadyInService) return
+                          handleCloseRepair(r.id, 'EN_SERVICE')
+                        }}
+                        variant="default"
+                        disabled={enServiceDisabled}
+                        title={isAlreadyInService ? 'Aucune action possible: matériel déjà en service' : 'Marquer en service'}
+                      >
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path
+                            fillRule="evenodd"
+                            d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.24 7.3a1 1 0 0 1-1.43-.003l-3.75-3.8a1 1 0 1 1 1.423-1.404l3.039 3.077 6.532-6.584a1 1 0 0 1 1.42 0Z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        En service
+                      </Button>
+                      <Button
+                        className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
+                        onClick={() => {
+                          if (isAlreadyInService || isAlreadyOutOfService) return
+                          handleCloseRepair(r.id, 'HORS_SERVICE')
+                        }}
+                        variant="danger"
+                        disabled={horsServiceDisabled}
+                        title={
+                          isAlreadyInService
+                            ? 'Aucune action possible: matériel déjà en service'
+                            : isAlreadyOutOfService
+                              ? 'Aucune action possible: matériel déjà hors service'
+                              : 'Marquer hors service'
+                        }
+                      >
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path
+                            fillRule="evenodd"
+                            d="M4.293 4.293a1 1 0 0 1 1.414 0L10 8.586l4.293-4.293a1 1 0 1 1 1.414 1.414L11.414 10l4.293 4.293a1 1 0 0 1-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 0 1-1.414-1.414L8.586 10 4.293 5.707a1 1 0 0 1 0-1.414Z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        Hors service
+                      </Button>
+                    </div>
+                  )}
                 </td>
               </tr>
             )
           })}
           {!repairs.length ? (
             <tr>
-              <td className="px-4 py-8 text-center text-gray-500" colSpan={7}>
+              <td className="px-4 py-8 text-center text-gray-500" colSpan={8}>
                 {loading ? (
                   <span className="inline-flex w-full items-center justify-center" aria-label="Chargement">
                     <BeatLoader size={10} color="var(--color-primary)" />

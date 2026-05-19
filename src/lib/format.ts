@@ -9,10 +9,12 @@ export function formatDate(iso: string | null | undefined) {
 
 export function assetStatusLabel(s: AssetStatus) {
   switch (s) {
-    case 'EN_STOCK':
-      return 'En Stock'
+    case 'EN_STOCK_NON_AFFECTE':
+      return 'Stock/Non affecté'
     case 'AFFECTE':
       return 'Affecté'
+    case 'EN_PRET':
+      return 'En prêt'
     case 'EN_PANNE':
       return 'En Panne'
     case 'EN_REPARATION':

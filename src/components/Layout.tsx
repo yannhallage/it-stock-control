@@ -133,6 +133,30 @@ const navItems: Array<{ to: string; label: string; icon: React.ReactNode }> = [
     ),
   },
   {
+    to: '/emprunts-materiel',
+    label: 'Emprunts matériel',
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h16v10H4V5z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 19h8M12 15v4" />
+      </svg>
+    ),
+  },
+  {
+    to: '/statistiques-machines',
+    label: 'Statistiques machines',
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M4 19V5m0 14h16M8 16V9m4 7V7m4 9v-4"
+        />
+      </svg>
+    ),
+  },
+  {
     to: '/fournisseurs',
     label: 'Fournisseurs',
     icon: (
@@ -263,7 +287,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <span className="rounded border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600">
                 {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
               </span>
-              <button
+              {/* <button
                 type="button"
                 className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
               >
@@ -272,10 +296,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
                   </svg>
                 </Tooltip>
-              </button>
+              </button> */}
             </div>
           </div>
-          <nav className="mt-4 flex gap-1 px-6">
+          <nav className="mt-4 flex gap-1 overflow-x-auto px-6">
             {navItems.map((item) => {
               const active = isActive(item.to)
               return (
@@ -284,7 +308,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   to={item.to}
                   end={item.to === '/'}
                   className={[
-                    'border-b-2 px-4 py-3 text-sm transition-colors',
+                    'shrink-0 border-b-2 px-4 py-3 text-sm transition-colors',
                     active ? 'tab-active' : 'tab-inactive border-transparent',
                   ].join(' ')}
                 >
