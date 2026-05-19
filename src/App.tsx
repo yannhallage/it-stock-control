@@ -7,6 +7,7 @@ import { AssetsPage } from './pages/Assets'
 import { AssignmentsPage } from './pages/Assignments'
 import { IncidentsPage } from './pages/Incidents'
 import { WorkshopPage } from './pages/Workshop'
+import { ScreenLoansPage } from './pages/ScreenLoans'
 import { AssetDetailsPage } from './pages/AssetDetails'
 import { SuppliersPage } from './pages/Suppliers'
 import { MaterialTypesPage } from './pages/MaterialTypes'
@@ -35,6 +36,8 @@ export default function App() {
               <Route path="/affectations" element={<AssignmentsPage />} />
               <Route path="/pannes" element={<IncidentsPage />} />
               <Route path="/atelier" element={<WorkshopPage />} />
+              <Route path="/emprunts-materiel" element={<ScreenLoansPage />} />
+              <Route path="/emprunts-ecrans" element={<Navigate to="/emprunts-materiel" replace />} />
               <Route path="/fournisseurs" element={<SuppliersPage />} />
               <Route path="/types-materiel" element={<MaterialTypesPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />

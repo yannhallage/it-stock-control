@@ -45,17 +45,40 @@ import { Button, Card, PageTitle } from '../components/Ui'
 //   )
 // }
 
+function getRepairExitDate(repair: RepairFromApi) {
+  return repair.workshopExitDate ?? repair.workshopOut
+}
+
+function repairOutcomeLabel(outcome: RepairFromApi['outcome']) {
+  switch (outcome) {
+    case 'EN_SERVICE':
+      return 'En service'
+    case 'HORS_SERVICE':
+      return 'Hors service'
+    default:
+      return '—'
+  }
+}
+
 function RepairBlock({ repair }: { repair: RepairFromApi }) {
+  const workshopExitDate = getRepairExitDate(repair)
+
   return (
     <div className="rounded border border-gray-200 bg-gray-50 p-2 text-xs">
       <div className="flex items-center justify-between">
         <span className="font-semibold">#{repair.id} — {repair.status}</span>
         <span>
-          {formatDate(repair.workshopEntryDate)} → {repair.outcome ?? '—'}
+          Sortie atelier: {formatDate(workshopExitDate) || 'En atelier'}
         </span>
       </div>
+      <div className="mt-2 grid gap-1 sm:grid-cols-2">
+        <span>Entrée atelier: {formatDate(repair.workshopEntryDate) || '—'}</span>
+        <span>Sortie atelier: {formatDate(workshopExitDate) || 'En atelier'}</span>
+        <span>Résultat: {repairOutcomeLabel(repair.outcome)}</span>
+        <span>Coût: {repair.cost != null ? repair.cost.toFixed(2) : '—'}</span>
+      </div>
       <div className="mt-1">
-        Action: {repair.action} • Coût: {repair.cost != null ? repair.cost.toFixed(2) : '—'}
+        Action: {repair.action || '—'}
       </div>
     </div>
   )
@@ -253,7 +276,7 @@ export function AssetDetailsPage() {
 
   const allRepairs = data.incidentsWithRepairs.flatMap((incident) => incident.repairs)
   const openIncidents = data.incidentsWithRepairs.filter((incident) => incident.status !== 'CLOS').length
-  const ongoingRepairs = allRepairs.filter((repair) => repair.status !== 'FINISHED').length
+  const ongoingRepairs = allRepairs.filter((repair) => repair.status === 'EN_COURS').length
   const totalRepairCost = allRepairs.reduce((sum, repair) => sum + (repair.cost ?? 0), 0)
 
   const timelineContent = (

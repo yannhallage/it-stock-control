@@ -9,11 +9,13 @@ export type ListRepairsParams = {
 }
 
 /** Réparation avec incident et matériel (selon la réponse backend) */
-export type RepairWithRelations = Omit<Repair, 'workshopIn' | 'cost'> & {
+export type RepairWithRelations = Omit<Repair, 'workshopIn' | 'workshopOut' | 'cost'> & {
   /** Ancien champ ou mock */
   workshopIn?: string
+  workshopOut?: string | null
   /** Champ renvoyé par l’API (camelCase) */
   workshopEntryDate?: string
+  workshopExitDate?: string | null
   /** Nom du technicien ayant pris en charge la réparation */
   technicianName?: string
   /** Coût parfois renvoyé en string par l’API */

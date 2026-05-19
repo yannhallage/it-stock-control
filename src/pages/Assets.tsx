@@ -6,17 +6,19 @@ import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
 import { useAssignments } from '../api/hooks/useAssignments'
 import { useImpression } from '../api/hooks/useImpression'
+import { useScreenLoans } from '../api/hooks/useScreenLoans'
 import { useSuppliers } from '../api/hooks/useSuppliers'
 import { useMaterialTypes } from '../api/hooks/useMaterialTypes'
 import { errorMessageFromUnknown } from '../lib/errors'
 import { formatDate } from '../lib/format'
-import type { Asset, AssetStatus } from '../types'
+import type { Asset, AssetStatus, ScreenLoan } from '../types'
 import type { Supplier } from '../api/services/suppliers.service'
 import type { MaterialType } from '../api/services/material-types.service'
 import { StatusBadge } from '../components/Badge'
 import { DrawerAssets, type AssetCreateFormState } from '../components/drawers/DrawerAssets'
 import { DrawerAssetsUpdate } from '../components/drawers/DrawerAssetsUpdate'
 import { DrawerAssignments } from '../components/drawers/DrawerAssignments'
+import { DrawerScreenLoan } from '../components/drawers/DrawerScreenLoan'
 import { ConfirmModal } from '../components/Modal'
 import { Button, Card, Input, PageTitle, Select, Table } from '../components/Ui'
 
@@ -24,6 +26,7 @@ const statusOptions: Array<{ value: AssetStatus | ''; label: string }> = [
   { value: '', label: 'Tous' },
   { value: 'EN_STOCK_NON_AFFECTE', label: 'Stock/Non affecté' },
   { value: 'AFFECTE', label: 'Affecté' },
+  { value: 'EN_PRET', label: 'En prêt' },
   { value: 'EN_PANNE', label: 'En Panne' },
   { value: 'EN_REPARATION', label: 'Réparation' },
   { value: 'EN_SERVICE', label: 'En Service' },
@@ -165,6 +168,15 @@ function TransferAssignIcon({ className }: { className?: string }) {
   )
 }
 
+function ScreenLoanIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h16v10H4V5z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 19h8M12 15v4" />
+    </svg>
+  )
+}
+
 export function AssetsPage() {
   const [items, setItems] = useState<Asset[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
@@ -178,6 +190,9 @@ export function AssetsPage() {
   const [allAssets, setAllAssets] = useState<Asset[]>([])
 
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [activeScreenLoans, setActiveScreenLoans] = useState<ScreenLoan[]>([])
+  const [screenLoanDrawerOpen, setScreenLoanDrawerOpen] = useState(false)
+  const [screenLoanAssetId, setScreenLoanAssetId] = useState<number | ''>('')
 
   const [form, setForm] = useState<AssetCreateFormState>(() => ({
     inventoryNumber: nextSequentialInventoryNumber('PC', []),
@@ -214,6 +229,12 @@ export function AssetsPage() {
   const { fetchAssets, createAsset, updateAsset, deleteAsset, loading, error: apiError } = useAssets()
   const { createAssignmentForAsset, loading: assignmentLoading, error: assignmentError } = useAssignments()
   const { downloadReport, loading: printLoading, error: printError } = useImpression()
+  const {
+    fetchScreenLoans,
+    createScreenLoan,
+    loading: screenLoanLoading,
+    error: screenLoanError,
+  } = useScreenLoans()
   const { fetchSuppliers } = useSuppliers()
   const { fetchMaterialTypes } = useMaterialTypes()
 
@@ -222,6 +243,12 @@ export function AssetsPage() {
     setAllAssets(assets)
     return assets
   }, [fetchAssets])
+
+  const loadActiveScreenLoans = useCallback(async () => {
+    const loans = await fetchScreenLoans({ status: 'NOT_RETURNED' })
+    setActiveScreenLoans(loans ?? [])
+    return loans
+  }, [fetchScreenLoans])
 
   const types = useMemo(() => {
     const s = new Set(items.map((a) => a.type).filter(Boolean))
@@ -242,6 +269,18 @@ export function AssetsPage() {
       }))
   }, [allAssets])
 
+  const loanableAssets = useMemo(() => {
+    return allAssets
+      .filter((a) => a.status === 'EN_STOCK_NON_AFFECTE' || a.status === 'EN_PRET')
+      .slice()
+      .sort((a, b) => a.inventoryNumber.localeCompare(b.inventoryNumber, 'fr', { numeric: true }))
+  }, [allAssets])
+
+  const activeLoanAssetIds = useMemo(
+    () => new Set(activeScreenLoans.filter((loan) => !loan.returnedAt).map((loan) => loan.assetId)),
+    [activeScreenLoans],
+  )
+
   const filteredItems = useMemo(() => items.filter((a) => assetMatchesQuery(a, q)), [items, q])
 
   function load() {
@@ -259,6 +298,10 @@ export function AssetsPage() {
     loadAllForSeq().catch((e) => {
       const msg = String(e?.message ?? e)
       toast.error(msg || 'Erreur lors du chargement des matériels (séquence inventaire).')
+    })
+    loadActiveScreenLoans().catch((e) => {
+      const msg = String(e?.message ?? e)
+      toast.error(msg || 'Erreur lors du chargement des emprunts de matériel.')
     })
     fetchSuppliers()
       .then(setSuppliers)
@@ -435,6 +478,16 @@ export function AssetsPage() {
     setAssignmentDrawerOpen(true)
   }
 
+  function openScreenLoanDrawerForAsset(assetId: number) {
+    setScreenLoanAssetId(assetId)
+    setScreenLoanDrawerOpen(true)
+  }
+
+  async function handleScreenLoanSuccess() {
+    await Promise.all([loadAllForSeq(), loadActiveScreenLoans()])
+    load()
+  }
+
   async function onCreateAssignment(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
@@ -527,9 +580,24 @@ export function AssetsPage() {
             Ajouter un matériel
           </Button>
           <Button
+            type="button"
+            onClick={() => {
+              setScreenLoanAssetId('')
+              setScreenLoanDrawerOpen(true)
+            }}
+            className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
+            disabled={loading || screenLoanLoading}
+          >
+            Emprunter un matériel
+          </Button>
+          <Button
             onClick={() => {
               load()
               loadAllForSeq().catch((e) => {
+                const msg = String(e?.message ?? e)
+                toast.error(msg || 'Erreur lors du chargement.')
+              })
+              loadActiveScreenLoans().catch((e) => {
                 const msg = String(e?.message ?? e)
                 toast.error(msg || 'Erreur lors du chargement.')
               })
@@ -542,9 +610,9 @@ export function AssetsPage() {
         </div>
       </div>
 
-      {error || apiError || printError || assignmentError ? (
+      {error || apiError || printError || assignmentError || screenLoanError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          {error ?? apiError ?? printError ?? assignmentError}
+          {error ?? apiError ?? printError ?? assignmentError ?? screenLoanError}
         </div>
       ) : null}
 
@@ -585,6 +653,19 @@ export function AssetsPage() {
         setStartDate={setAssignStartDate}
         loading={loading || assignmentLoading}
         onSubmit={onCreateAssignment}
+      />
+
+      <DrawerScreenLoan
+        isOpen={screenLoanDrawerOpen}
+        onClose={() => {
+          setScreenLoanDrawerOpen(false)
+          setScreenLoanAssetId('')
+        }}
+        onSuccess={handleScreenLoanSuccess}
+        assets={loanableAssets}
+        activeLoanAssetIds={activeLoanAssetIds}
+        createScreenLoan={createScreenLoan}
+        initialAssetId={screenLoanAssetId}
       />
 
       <Card title="Liste du matériel">
@@ -717,6 +798,43 @@ export function AssetsPage() {
                     }
                   >
                     <TransferAssignIcon className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    className={`inline-flex items-center justify-center rounded p-1.5 ${
+                      a.status === 'EN_STOCK_NON_AFFECTE' &&
+                      !activeLoanAssetIds.has(a.id) &&
+                      !loading &&
+                      !screenLoanLoading
+                        ? 'cursor-pointer text-gray-600 hover:bg-sky-50 hover:text-sky-800'
+                        : 'cursor-not-allowed text-gray-300'
+                    } ${loading || screenLoanLoading ? 'pointer-events-none opacity-50' : ''}`}
+                    title={
+                      activeLoanAssetIds.has(a.id) || a.status === 'EN_PRET'
+                        ? 'Ce matériel est déjà en prêt'
+                        : a.status === 'EN_STOCK_NON_AFFECTE'
+                          ? 'Enregistrer un emprunt de matériel'
+                          : 'Réservé au matériel en stock non affecté'
+                    }
+                    aria-label="Enregistrer un emprunt de matériel"
+                    disabled={
+                      a.status !== 'EN_STOCK_NON_AFFECTE' ||
+                      activeLoanAssetIds.has(a.id) ||
+                      loading ||
+                      screenLoanLoading
+                    }
+                    onClick={() => {
+                      if (
+                        !loading &&
+                        !screenLoanLoading &&
+                        a.status === 'EN_STOCK_NON_AFFECTE' &&
+                        !activeLoanAssetIds.has(a.id)
+                      ) {
+                        openScreenLoanDrawerForAsset(a.id)
+                      }
+                    }}
+                  >
+                    <ScreenLoanIcon className="h-3 w-3" />
                   </button>
                   <button
                     type="button"

@@ -1,6 +1,7 @@
 export type AssetStatus =
   | 'EN_STOCK_NON_AFFECTE'
   | 'AFFECTE'
+  | 'EN_PRET'
   | 'EN_PANNE'
   | 'EN_REPARATION'
   | 'EN_SERVICE'
@@ -53,7 +54,9 @@ export type Repair = {
   cost: number
   workshopIn: string
   workshopOut: string | null
+  workshopExitDate?: string | null
   status: 'EN_COURS' | 'TERMINE'
+  outcome?: AssetStatus | null
   createdAt: string
   updatedAt: string
 }
@@ -63,10 +66,12 @@ export type RepairFromApi = {
   id: number
   incidentId: number
   workshopEntryDate: string
+  workshopExitDate: string | null
+  workshopOut?: string | null
   action: string
   cost: number | null
-  status: string
-  outcome: string | null
+  status: Repair['status']
+  outcome: AssetStatus | null
   createdAt: string
   updatedAt: string
 }
@@ -92,6 +97,21 @@ export type DashboardStats = {
   stockVsAssigned: { enStock: number; affecte: number }
   topDepartmentsIncidents: Array<{ department: string; count: number }>
   repairsInProgress: number
+}
+
+export type ScreenLoanStatus = 'RETURNED' | 'NOT_RETURNED'
+
+export type ScreenLoan = {
+  id: number
+  assetId: number
+  borrowerName: string
+  borrowerDepartment?: string | null
+  loanDate: string
+  expectedReturnDate: string
+  returnedAt: string | null
+  note?: string | null
+  createdAt: string
+  asset?: Pick<Asset, 'id' | 'inventoryNumber' | 'type' | 'brand' | 'model' | 'status'>
 }
 
 /** Réponse de l’API GET /api/dashboard (backend) */

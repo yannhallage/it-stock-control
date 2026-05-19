@@ -13,6 +13,8 @@ export function assetStatusLabel(s: AssetStatus) {
       return 'Stock/Non affecté'
     case 'AFFECTE':
       return 'Affecté'
+    case 'EN_PRET':
+      return 'En prêt'
     case 'EN_PANNE':
       return 'En Panne'
     case 'EN_REPARATION':

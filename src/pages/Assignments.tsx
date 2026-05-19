@@ -182,6 +182,7 @@ export function AssignmentsPage() {
               <option value="">Tous</option>
               <option value="EN_STOCK_NON_AFFECTE">EN_STOCK_NON_AFFECTE</option>
               <option value="AFFECTE">AFFECTE</option>
+              <option value="EN_PRET">EN_PRET</option>
               <option value="EN_SERVICE">EN_SERVICE</option>
               <option value="EN_PANNE">EN_PANNE</option>
               <option value="EN_REPARATION">EN_REPARATION</option>

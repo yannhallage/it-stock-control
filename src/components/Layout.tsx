@@ -133,6 +133,16 @@ const navItems: Array<{ to: string; label: string; icon: React.ReactNode }> = [
     ),
   },
   {
+    to: '/emprunts-materiel',
+    label: 'Emprunts matériel',
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h16v10H4V5z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 19h8M12 15v4" />
+      </svg>
+    ),
+  },
+  {
     to: '/fournisseurs',
     label: 'Fournisseurs',
     icon: (
