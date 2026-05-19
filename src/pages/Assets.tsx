@@ -1,5 +1,6 @@
 import type React from 'react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
@@ -11,7 +12,7 @@ import { useSuppliers } from '../api/hooks/useSuppliers'
 import { useMaterialTypes } from '../api/hooks/useMaterialTypes'
 import { errorMessageFromUnknown } from '../lib/errors'
 import { formatDate } from '../lib/format'
-import type { Asset, AssetStatus, ScreenLoan } from '../types'
+import type { Asset, AssetDetailsApi, AssetStatus, Assignment, ScreenLoan } from '../types'
 import type { Supplier } from '../api/services/suppliers.service'
 import type { MaterialType } from '../api/services/material-types.service'
 import { StatusBadge } from '../components/Badge'
@@ -19,7 +20,7 @@ import { DrawerAssets, type AssetCreateFormState } from '../components/drawers/D
 import { DrawerAssetsUpdate } from '../components/drawers/DrawerAssetsUpdate'
 import { DrawerAssignments } from '../components/drawers/DrawerAssignments'
 import { DrawerScreenLoan } from '../components/drawers/DrawerScreenLoan'
-import { ConfirmModal } from '../components/Modal'
+import { ConfirmModal, Modal } from '../components/Modal'
 import { Button, Card, Input, PageTitle, Select, Table } from '../components/Ui'
 
 const statusOptions: Array<{ value: AssetStatus | ''; label: string }> = [
@@ -81,6 +82,29 @@ function warrantyLabel(asset: Asset): string {
   if (asset.warrantyEndDate) return `Jusqu'au ${formatDate(asset.warrantyEndDate)}`
   if (typeof asset.warrantyMonths === 'number') return `${asset.warrantyMonths} mois`
   return '—'
+}
+
+function assignmentUserNames(user: Assignment['user']): string[] {
+  if (typeof user === 'string') {
+    return user
+      .split(/\s*,\s*/)
+      .map((name) => name.trim())
+      .filter(Boolean)
+  }
+  if (user && typeof user === 'object' && 'names' in user && Array.isArray(user.names)) {
+    return user.names.map((name) => String(name).trim()).filter(Boolean)
+  }
+  if (user && typeof user === 'object' && 'name' in user && typeof user.name === 'string') {
+    const name = user.name.trim()
+    return name ? [name] : []
+  }
+  return []
+}
+
+function assignmentUsersLabel(assignment: Assignment | null | undefined): string {
+  if (!assignment) return '—'
+  const names = assignmentUserNames(assignment.user)
+  return names.length ? names.join(', ') : '—'
 }
 
 /** Prochain numéro du type `PC0002`, `PC00303` (préfixe + suite numérique). */
@@ -177,6 +201,391 @@ function ScreenLoanIcon({ className }: { className?: string }) {
   )
 }
 
+function DotsVerticalIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 6.75h.01M12 12h.01M12 17.25h.01"
+      />
+    </svg>
+  )
+}
+
+function EyeIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12z"
+      />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  )
+}
+
+function DetailItem({
+  label,
+  children,
+}: React.PropsWithChildren<{
+  label: string
+}>) {
+  return (
+    <div>
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</div>
+      <div className="mt-1 text-sm font-medium text-gray-900">{children || '—'}</div>
+    </div>
+  )
+}
+
+function SkeletonBlock({ className = '' }: { className?: string }) {
+  return <div className={`skeleton-block rounded ${className}`} aria-hidden="true" />
+}
+
+function AssetPreviewSkeleton() {
+  return (
+    <div className="space-y-5" aria-label="Chargement du détail du matériel">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-[220px] flex-1 space-y-2">
+          <SkeletonBlock className="h-3 w-20" />
+          <SkeletonBlock className="h-6 w-56 max-w-full" />
+          <SkeletonBlock className="h-3 w-36" />
+        </div>
+        <SkeletonBlock className="h-6 w-24 rounded-full" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 sm:grid-cols-2">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div key={index} className="space-y-2">
+            <SkeletonBlock className="h-3 w-24" />
+            <SkeletonBlock className="h-4 w-full" />
+          </div>
+        ))}
+      </div>
+
+      <div className="border-t border-gray-100 pt-4">
+        <SkeletonBlock className="h-4 w-40" />
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="space-y-2">
+              <SkeletonBlock className="h-3 w-28" />
+              <SkeletonBlock className="h-4 w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AssetPreviewModal({
+  open,
+  onClose,
+  asset,
+  loading,
+  error,
+}: {
+  open: boolean
+  onClose: () => void
+  asset: AssetDetailsApi | null
+  loading: boolean
+  error: string | null
+}) {
+  const assignment = asset?.currentAssignment ?? null
+  const assignmentUsers = assignment ? assignmentUsersLabel(assignment) : ''
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={asset ? `Aperçu ${asset.inventoryNumber}` : 'Aperçu du matériel'}
+      closeOnBackdrop={!loading}
+      footer={
+        <Button
+          type="button"
+          variant="default"
+          className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
+          onClick={onClose}
+          disabled={loading}
+        >
+          Fermer
+        </Button>
+      }
+    >
+      {loading ? (
+        <AssetPreviewSkeleton />
+      ) : error ? (
+        <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</div>
+      ) : asset ? (
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-xs font-medium text-gray-500">{asset.type}</div>
+              <div className="mt-1 text-lg font-semibold text-gray-900">
+                {asset.brand} {asset.model}
+              </div>
+              <div className="mt-1 text-xs text-gray-500">Inventaire {asset.inventoryNumber}</div>
+            </div>
+            <StatusBadge status={asset.currentStatus ?? asset.status} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 sm:grid-cols-2">
+            <DetailItem label="N° série">{serialNumberValue(asset) || '—'}</DetailItem>
+            <DetailItem label="Fournisseur">{asset.supplier || '—'}</DetailItem>
+            <DetailItem label="Date d'entrée">{formatDate(asset.entryDate) || '—'}</DetailItem>
+            <DetailItem label="Date d'ajout">{formatDate(asset.createdAt) || '—'}</DetailItem>
+            <DetailItem label="Garantie">{warrantyLabel(asset)}</DetailItem>
+            <DetailItem label="Mise à jour">{formatDate(asset.updatedAt) || '—'}</DetailItem>
+          </div>
+
+          <div className="border-t border-gray-100 pt-4">
+            <div className="text-sm font-semibold text-gray-900">Affectation actuelle</div>
+            {assignment ? (
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <DetailItem label="Direction / service">{assignment.department || '—'}</DetailItem>
+                <DetailItem label="Personne(s) assignée(s)">{assignmentUsers || '—'}</DetailItem>
+                <DetailItem label="Date d'affectation">{formatDate(assignment.startDate) || '—'}</DetailItem>
+              </div>
+            ) : (
+              <div className="mt-3 rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                Aucune affectation active.
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="py-6 text-sm text-gray-600">Aucun matériel sélectionné.</div>
+      )}
+    </Modal>
+  )
+}
+
+type ActionMenuPosition = {
+  top?: number
+  right: number
+  bottom?: number
+}
+
+type AssetActionsMenuProps = {
+  asset: Asset
+  loading: boolean
+  loanLoading: boolean
+  isLoanActive: boolean
+  onView: (assetId: number) => void
+  onEdit: (asset: Asset) => void
+  onAssign: (assetId: number) => void
+  onLoan: (assetId: number) => void
+  onDelete: (assetId: number) => void
+}
+
+function AssetActionsMenu({
+  asset,
+  loading,
+  loanLoading,
+  isLoanActive,
+  onView,
+  onEdit,
+  onAssign,
+  onLoan,
+  onDelete,
+}: AssetActionsMenuProps) {
+  const [open, setOpen] = useState(false)
+  const [position, setPosition] = useState<ActionMenuPosition | null>(null)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+
+  const assignDisabled = asset.status !== 'EN_STOCK_NON_AFFECTE' || loading
+  const loanDisabled = asset.status !== 'EN_STOCK_NON_AFFECTE' || isLoanActive || loading || loanLoading
+
+  const assignTitle =
+    asset.status === 'EN_STOCK_NON_AFFECTE'
+      ? 'Transférer / affecter vers une direction'
+      : 'Réservé au matériel en stock non affecté'
+  const loanTitle =
+    isLoanActive || asset.status === 'EN_PRET'
+      ? 'Ce matériel est déjà en prêt'
+      : asset.status === 'EN_STOCK_NON_AFFECTE'
+        ? 'Enregistrer un emprunt de matériel'
+        : 'Réservé au matériel en stock non affecté'
+
+  const updatePosition = useCallback(() => {
+    const trigger = triggerRef.current
+    if (!trigger) return
+    const rect = trigger.getBoundingClientRect()
+    const menuHeight = 270
+    const opensUp = rect.bottom + menuHeight > window.innerHeight && rect.top > menuHeight
+    const next: ActionMenuPosition = {
+      right: Math.max(8, window.innerWidth - rect.right),
+      ...(opensUp
+        ? { bottom: Math.max(8, window.innerHeight - rect.top + 6) }
+        : { top: Math.min(rect.bottom + 6, window.innerHeight - 8) }),
+    }
+    setPosition(next)
+  }, [])
+
+  useEffect(() => {
+    if (!open) return
+    updatePosition()
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node
+      if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    const handleScrollOrResize = () => updatePosition()
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('resize', handleScrollOrResize)
+    window.addEventListener('scroll', handleScrollOrResize, true)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('resize', handleScrollOrResize)
+      window.removeEventListener('scroll', handleScrollOrResize, true)
+    }
+  }, [open, updatePosition])
+
+  const menuStyle: React.CSSProperties | undefined = position
+    ? {
+        position: 'fixed',
+        right: position.right,
+        top: position.top,
+        bottom: position.bottom,
+      }
+    : undefined
+
+  const itemClass =
+    'flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium transition-colors'
+  const enabledClass = 'cursor-pointer text-gray-700 hover:bg-gray-50 hover:text-gray-950'
+  const disabledClass = 'cursor-not-allowed text-gray-300'
+
+  const runAction = (action: () => void) => {
+    setOpen(false)
+    action()
+  }
+
+  return (
+    <div className="relative inline-flex">
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`inline-flex h-7 w-7 items-center justify-center cursor-pointer rounded border border-gray-200 bg-white text-gray-600 shadow-sm hover:bg-gray-50 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60 ${
+          loading || loanLoading ? 'opacity-70' : ''
+        }`}
+        title="Actions"
+        aria-label={`Actions pour ${asset.inventoryNumber}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <DotsVerticalIcon className="h-4 w-4" />
+      </button>
+
+      {open && position
+        ? createPortal(
+            <div
+              ref={menuRef}
+              className="z-[60] min-w-[230px] overflow-hidden rounded border border-gray-200 bg-white py-1 shadow-lg"
+              style={menuStyle}
+              role="menu"
+              aria-label={`Actions pour ${asset.inventoryNumber}`}
+            >
+              <button
+                type="button"
+                className={`${itemClass} ${loading ? disabledClass : enabledClass}`}
+                title="Voir"
+                role="menuitem"
+                disabled={loading}
+                onClick={() => !loading && runAction(() => onView(asset.id))}
+              >
+                <EyeIcon className="h-3.5 w-3.5" />
+                Voir
+              </button>
+
+              {loading ? (
+                <span className={`${itemClass} ${disabledClass}`} role="menuitem" aria-disabled="true">
+                  <HistoryIcon className="h-3.5 w-3.5" />
+                  Historique / aperçu
+                </span>
+              ) : (
+                <Link
+                  to={`/assets/${asset.id}`}
+                  className={`${itemClass} ${enabledClass}`}
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                >
+                  <HistoryIcon className="h-3.5 w-3.5" />
+                  Historique / aperçu
+                </Link>
+              )}
+
+              <button
+                type="button"
+                className={`${itemClass} ${loading ? disabledClass : enabledClass}`}
+                title="Modifier"
+                role="menuitem"
+                disabled={loading}
+                onClick={() => !loading && runAction(() => onEdit(asset))}
+              >
+                <PencilIcon className="h-3.5 w-3.5" />
+                Modifier
+              </button>
+
+              <button
+                type="button"
+                className={`${itemClass} ${assignDisabled ? disabledClass : enabledClass}`}
+                title={assignTitle}
+                role="menuitem"
+                disabled={assignDisabled}
+                onClick={() => !assignDisabled && runAction(() => onAssign(asset.id))}
+              >
+                <TransferAssignIcon className="h-3.5 w-3.5" />
+                Affecter
+              </button>
+
+              <button
+                type="button"
+                className={`${itemClass} ${loanDisabled ? disabledClass : enabledClass}`}
+                title={loanTitle}
+                role="menuitem"
+                disabled={loanDisabled}
+                onClick={() => !loanDisabled && runAction(() => onLoan(asset.id))}
+              >
+                <ScreenLoanIcon className="h-3.5 w-3.5" />
+                Emprunter
+              </button>
+
+              <div className="my-1 border-t border-gray-100" />
+
+              <button
+                type="button"
+                className={`${itemClass} ${
+                  loading ? disabledClass : 'cursor-pointer text-red-600 hover:bg-red-50 hover:text-red-700'
+                }`}
+                title="Supprimer"
+                role="menuitem"
+                disabled={loading}
+                onClick={() => !loading && runAction(() => onDelete(asset.id))}
+              >
+                <TrashIcon className="h-3.5 w-3.5" />
+                Supprimer
+              </button>
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
+  )
+}
+
 export function AssetsPage() {
   const [items, setItems] = useState<Asset[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
@@ -207,6 +616,10 @@ export function AssetsPage() {
 
   const [assetToDelete, setAssetToDelete] = useState<number | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewAsset, setPreviewAsset] = useState<AssetDetailsApi | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
 
   const [assignmentDrawerOpen, setAssignmentDrawerOpen] = useState(false)
   const [assignAssetId, setAssignAssetId] = useState<number | ''>('')
@@ -226,7 +639,7 @@ export function AssetsPage() {
     supplier: '',
   }))
 
-  const { fetchAssets, createAsset, updateAsset, deleteAsset, loading, error: apiError } = useAssets()
+  const { fetchAssets, getAssetById, createAsset, updateAsset, deleteAsset, loading, error: apiError } = useAssets()
   const { createAssignmentForAsset, loading: assignmentLoading, error: assignmentError } = useAssignments()
   const { downloadReport, loading: printLoading, error: printError } = useImpression()
   const {
@@ -406,6 +819,23 @@ export function AssetsPage() {
     setAssetEditingId(a.id)
   }
 
+  async function openPreview(assetId: number) {
+    setPreviewOpen(true)
+    setPreviewAsset(null)
+    setPreviewError(null)
+    setPreviewLoading(true)
+    try {
+      const details = await getAssetById(assetId)
+      setPreviewAsset(details)
+    } catch (err: unknown) {
+      const msg = errorMessageFromUnknown(err, 'Erreur lors du chargement du détail du matériel.')
+      setPreviewError(msg)
+      toast.error(msg || 'Erreur lors du chargement du détail du matériel.')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
   async function onUpdate(e: React.FormEvent) {
     e.preventDefault()
     if (assetEditingId == null) return
@@ -568,6 +998,13 @@ export function AssetsPage() {
       >
         Êtes-vous sûr de vouloir supprimer <strong>{assetLabel}</strong> ? Cette action est irréversible.
       </ConfirmModal>
+      <AssetPreviewModal
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        asset={previewAsset}
+        loading={previewLoading}
+        error={previewError}
+      />
       <div className="flex items-center justify-between">
         <PageTitle>Gestion de Stock</PageTitle>
         <div className="flex flex-wrap items-center gap-2">
@@ -761,91 +1198,17 @@ export function AssetsPage() {
                 )}
               </td>
               <td className="px-4 py-3">
-                <div className="flex items-center gap-1">
-                  <Link
-                    to={`/assets/${a.id}`}
-                    className={`inline-flex items-center justify-center rounded p-1.5 text-gray-600 hover:bg-gray-100 hover:text-gray-900 ${loading ? 'pointer-events-none opacity-50' : ''}`}
-                    title="Historique / Aperçu"
-                    aria-label="Voir l'historique"
-                  >
-                    <HistoryIcon className="h-3 w-3" />
-                  </Link>
-                  <button
-                    type="button"
-                    className={`inline-flex items-center cursor-pointer justify-center rounded p-1.5 text-gray-600 hover:bg-amber-50 hover:text-amber-800 ${loading ? 'pointer-events-none opacity-50' : ''}`}
-                    title="Modifier"
-                    aria-label="Modifier le matériel"
-                    onClick={() => !loading && openEdit(a)}
-                  >
-                    <PencilIcon className="h-3 w-3" />
-                  </button>
-                  <button
-                    type="button"
-                    className={`inline-flex items-center justify-center rounded p-1.5 ${
-                      a.status === 'EN_STOCK_NON_AFFECTE' && !loading
-                        ? 'cursor-pointer text-gray-600 hover:bg-sky-50 hover:text-sky-800'
-                        : 'cursor-not-allowed text-gray-300'
-                    } ${loading ? 'pointer-events-none opacity-50' : ''}`}
-                    title={
-                      a.status === 'EN_STOCK_NON_AFFECTE'
-                        ? 'Transférer / affecter vers une direction'
-                        : 'Réservé au matériel en stock non affecté'
-                    }
-                    aria-label="Transférer ou affecter le matériel"
-                    disabled={a.status !== 'EN_STOCK_NON_AFFECTE' || loading}
-                    onClick={() =>
-                      !loading && a.status === 'EN_STOCK_NON_AFFECTE' && openAssignmentDrawerForAsset(a.id)
-                    }
-                  >
-                    <TransferAssignIcon className="h-3 w-3" />
-                  </button>
-                  <button
-                    type="button"
-                    className={`inline-flex items-center justify-center rounded p-1.5 ${
-                      a.status === 'EN_STOCK_NON_AFFECTE' &&
-                      !activeLoanAssetIds.has(a.id) &&
-                      !loading &&
-                      !screenLoanLoading
-                        ? 'cursor-pointer text-gray-600 hover:bg-sky-50 hover:text-sky-800'
-                        : 'cursor-not-allowed text-gray-300'
-                    } ${loading || screenLoanLoading ? 'pointer-events-none opacity-50' : ''}`}
-                    title={
-                      activeLoanAssetIds.has(a.id) || a.status === 'EN_PRET'
-                        ? 'Ce matériel est déjà en prêt'
-                        : a.status === 'EN_STOCK_NON_AFFECTE'
-                          ? 'Enregistrer un emprunt de matériel'
-                          : 'Réservé au matériel en stock non affecté'
-                    }
-                    aria-label="Enregistrer un emprunt de matériel"
-                    disabled={
-                      a.status !== 'EN_STOCK_NON_AFFECTE' ||
-                      activeLoanAssetIds.has(a.id) ||
-                      loading ||
-                      screenLoanLoading
-                    }
-                    onClick={() => {
-                      if (
-                        !loading &&
-                        !screenLoanLoading &&
-                        a.status === 'EN_STOCK_NON_AFFECTE' &&
-                        !activeLoanAssetIds.has(a.id)
-                      ) {
-                        openScreenLoanDrawerForAsset(a.id)
-                      }
-                    }}
-                  >
-                    <ScreenLoanIcon className="h-3 w-3" />
-                  </button>
-                  <button
-                    type="button"
-                    className={`inline-flex items-center cursor-pointer justify-center rounded p-1.5 text-gray-600 hover:bg-red-50 hover:text-red-600 ${loading ? 'pointer-events-none opacity-50' : ''}`}
-                    title="Supprimer"
-                    aria-label="Supprimer le matériel"
-                    onClick={() => !loading && setAssetToDelete(a.id)}
-                  >
-                    <TrashIcon className="h-3 w-3" />
-                  </button>
-                </div>
+                <AssetActionsMenu
+                  asset={a}
+                  loading={loading}
+                  loanLoading={screenLoanLoading}
+                  isLoanActive={activeLoanAssetIds.has(a.id)}
+                  onView={openPreview}
+                  onEdit={openEdit}
+                  onAssign={openAssignmentDrawerForAsset}
+                  onLoan={openScreenLoanDrawerForAsset}
+                  onDelete={setAssetToDelete}
+                />
               </td>
             </tr>
           ))}

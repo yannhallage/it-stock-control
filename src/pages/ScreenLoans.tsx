@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Calendar from 'react-calendar'
+import 'react-calendar/dist/Calendar.css'
 import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
@@ -12,6 +14,15 @@ import { Button, Card, Input, PageTitle, Select, Table } from '../components/Ui'
 const SCREEN_LOAN_STATUS_LABELS: Record<ScreenLoanStatus, string> = {
   NOT_RETURNED: 'Non retourné',
   RETURNED: 'Retourné',
+}
+
+type CalendarValue = Date | null | [Date | null, Date | null]
+type LoanDateFilterField = 'loanDate' | 'expectedReturnDate' | 'returnedAt'
+
+const LOAN_DATE_FILTER_LABELS: Record<LoanDateFilterField, string> = {
+  loanDate: 'Date de prêt',
+  expectedReturnDate: 'Retour prévu',
+  returnedAt: 'Retour réel',
 }
 
 function normalizeText(value: string) {
@@ -58,12 +69,86 @@ function assetLabel(asset: Asset | ScreenLoan['asset'] | undefined, fallbackId: 
   return `${asset.inventoryNumber} - ${asset.brand} ${asset.model}`
 }
 
+function startOfDay(date: Date) {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function endOfDay(date: Date) {
+  const d = new Date(date)
+  d.setHours(23, 59, 59, 999)
+  return d
+}
+
+function selectedCalendarRange(value: CalendarValue) {
+  if (!value) return null
+  if (Array.isArray(value)) {
+    const [rawStart, rawEnd] = value
+    const start = rawStart ?? rawEnd
+    const end = rawEnd ?? rawStart
+    if (!start || !end) return null
+    return { start: startOfDay(start), end: endOfDay(end) }
+  }
+  return { start: startOfDay(value), end: endOfDay(value) }
+}
+
+function calendarRangeLabel(value: CalendarValue) {
+  const range = selectedCalendarRange(value)
+  if (!range) return 'Choisir une période'
+  const start = formatDate(range.start.toISOString())
+  const end = formatDate(range.end.toISOString())
+  return start === end ? start : `${start} - ${end}`
+}
+
+function loanDateValue(loan: ScreenLoan, field: LoanDateFilterField) {
+  return loan[field]
+}
+
+function PrintIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M6 9V4h12v5M6 18h12v2H6v-2zm12-3h1a2 2 0 002-2v-3a2 2 0 00-2-2H5a2 2 0 00-2 2v3a2 2 0 002 2h1m12 0H6v-4h12v4z"
+      />
+    </svg>
+  )
+}
+
+function CalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z"
+      />
+    </svg>
+  )
+}
+
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18 18 6M6 6l12 12" />
+    </svg>
+  )
+}
+
 export function ScreenLoansPage() {
   const [assets, setAssets] = useState<Asset[]>([])
   const [loans, setLoans] = useState<ScreenLoan[]>([])
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'' | ScreenLoanStatus>('NOT_RETURNED')
+  const [dateFilterField, setDateFilterField] = useState<LoanDateFilterField>('loanDate')
+  const [dateRange, setDateRange] = useState<CalendarValue>(null)
+  const [calendarOpen, setCalendarOpen] = useState(false)
+  const calendarFilterRef = useRef<HTMLDivElement | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const { fetchAssets, loading: assetsLoading, error: assetsError } = useAssets()
@@ -116,13 +201,42 @@ export function ScreenLoansPage() {
     load()
   }, [load])
 
+  useEffect(() => {
+    if (!calendarOpen) return
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node
+      if (calendarFilterRef.current?.contains(target)) return
+      setCalendarOpen(false)
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setCalendarOpen(false)
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [calendarOpen])
+
   const filteredLoans = useMemo(() => {
     const query = normalizeText(searchTerm.trim())
+    const dateFilterRange = selectedCalendarRange(dateRange)
 
     return loans
       .filter((loan) => {
         if (!statusFilter) return true
         return loanStatus(loan) === statusFilter
+      })
+      .filter((loan) => {
+        if (!dateFilterRange) return true
+        const rawDate = loanDateValue(loan, dateFilterField)
+        if (!rawDate) return false
+        const date = new Date(rawDate)
+        if (Number.isNaN(date.getTime())) return false
+        return date.getTime() >= dateFilterRange.start.getTime() && date.getTime() <= dateFilterRange.end.getTime()
       })
       .filter((loan) => {
         if (!query) return true
@@ -140,7 +254,7 @@ export function ScreenLoansPage() {
           .toLowerCase()
         return normalizeText(searchable).includes(query)
       })
-  }, [assetsById, loans, searchTerm, statusFilter])
+  }, [assetsById, dateFilterField, dateRange, loans, searchTerm, statusFilter])
 
   const activeLoansCount = loans.filter((loan) => !loan.returnedAt).length
   const returnedLoansCount = loans.filter((loan) => Boolean(loan.returnedAt)).length
@@ -159,11 +273,35 @@ export function ScreenLoansPage() {
     }
   }
 
+  function handlePrintAll() {
+    toast.info("Impression de tous les emprunts non branchée à l'API.")
+  }
+
+  function handlePrintLoan(loanId: number) {
+    toast.info(`Impression de l'emprunt #${loanId} non branchée à l'API.`)
+  }
+
+  function handleDateRangeChange(nextValue: CalendarValue) {
+    setDateRange(nextValue)
+    if (Array.isArray(nextValue) && nextValue[0] && nextValue[1]) {
+      setCalendarOpen(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PageTitle>Emprunts de matériel</PageTitle>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
+            title="Imprimer tous les emprunts"
+            aria-label="Imprimer tous les emprunts"
+            onClick={handlePrintAll}
+          >
+            <PrintIcon className="h-5 w-5" />
+          </Button>
           <Button
             type="button"
             variant="primary"
@@ -216,7 +354,7 @@ export function ScreenLoansPage() {
 
       <Card title="Suivi des emprunts">
         <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-12 md:items-end">
-          <div className="md:col-span-4 lg:col-span-3">
+          <div className="md:col-span-4 lg:col-span-2">
             <Select
               label="Statut"
               value={statusFilter}
@@ -227,7 +365,7 @@ export function ScreenLoansPage() {
               <option value="RETURNED">Retourné</option>
             </Select>
           </div>
-          <div className="md:col-span-8 lg:col-span-7">
+          <div className="md:col-span-8 lg:col-span-4">
             <Input
               label="Rechercher"
               placeholder="Emprunteur, direction, note, inventaire..."
@@ -235,7 +373,62 @@ export function ScreenLoansPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="md:col-span-12 lg:col-span-2">
+          <div className="md:col-span-4 lg:col-span-2">
+            <Select
+              label="Date"
+              value={dateFilterField}
+              onChange={(e) => setDateFilterField(e.target.value as LoanDateFilterField)}
+            >
+              {Object.entries(LOAN_DATE_FILTER_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div ref={calendarFilterRef} className="relative md:col-span-8 lg:col-span-4">
+            <div className="mb-1 text-xs font-medium text-gray-600">Période</div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="default"
+                className="h-[38px] min-w-0 flex-1 cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
+                title={`Filtrer par ${LOAN_DATE_FILTER_LABELS[dateFilterField].toLowerCase()}`}
+                aria-label={`Filtrer par ${LOAN_DATE_FILTER_LABELS[dateFilterField].toLowerCase()}`}
+                onClick={() => setCalendarOpen((value) => !value)}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                <span className="truncate">{calendarRangeLabel(dateRange)}</span>
+              </Button>
+              {dateRange ? (
+                <Button
+                  type="button"
+                  variant="default"
+                  className="h-[38px] min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
+                  title="Effacer le filtre date"
+                  aria-label="Effacer le filtre date"
+                  onClick={() => {
+                    setDateRange(null)
+                    setCalendarOpen(false)
+                  }}
+                >
+                  <XIcon className="h-4 w-4" />
+                </Button>
+              ) : null}
+            </div>
+            {calendarOpen ? (
+              <div className="absolute right-0 z-30 mt-2 rounded border border-gray-200 bg-white p-2 shadow-lg">
+                <Calendar
+                  value={dateRange}
+                  onChange={(nextValue) => handleDateRangeChange(nextValue as CalendarValue)}
+                  selectRange
+                  allowPartialRange
+                  locale="fr-FR"
+                />
+              </div>
+            ) : null}
+          </div>
+          {/* <div className="md:col-span-12 lg:col-span-2">
             <Button
               type="button"
               variant="default"
@@ -245,7 +438,7 @@ export function ScreenLoansPage() {
             >
               Actualiser
             </Button>
-          </div>
+          </div> */}
         </div>
 
         <Table columns={['Matériel', 'État matériel', 'Emprunteur', 'Direction', 'Date prêt', 'Retour prévu', 'Statut', 'Note', 'Retour réel', 'Action']}>
@@ -285,21 +478,33 @@ export function ScreenLoansPage() {
                   {formatDate(loan.returnedAt) || '—'}
                 </td>
                 <td className="border-b border-slate-100 px-3 py-2">
-                  {loan.returnedAt ? (
-                    <span className="inline-flex rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
-                      Retourné
-                    </span>
-                  ) : (
+                  <div className="flex items-center gap-1">
                     <Button
                       type="button"
                       variant="default"
                       className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
-                      onClick={() => handleMarkReturned(loan.id)}
-                      disabled={loading}
+                      title="Imprimer cet emprunt"
+                      aria-label={`Imprimer l'emprunt ${loan.id}`}
+                      onClick={() => handlePrintLoan(loan.id)}
                     >
-                      Marquer retourné
+                      <PrintIcon className="h-4 w-4" />
                     </Button>
-                  )}
+                    {loan.returnedAt ? (
+                      <span className="inline-flex rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
+                        Retourné
+                      </span>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="default"
+                        className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
+                        onClick={() => handleMarkReturned(loan.id)}
+                        disabled={loading}
+                      >
+                        Marquer retourné
+                      </Button>
+                    )}
+                  </div>
                 </td>
               </tr>
             )

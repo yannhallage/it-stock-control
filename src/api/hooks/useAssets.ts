@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react'
 import { errorMessageFromUnknown } from '../../lib/errors'
-import type { Asset } from '../../types'
+import type { Asset, AssetDetailsApi } from '../../types'
 import {
   createAssetService,
   deleteAssetService,
+  getAssetByIdService,
   listAssetsService,
   updateAssetService,
   type AssetCreatePayload,
@@ -13,6 +14,7 @@ import {
 
 type UseAssetsResult = {
   fetchAssets: (params?: ListAssetsParams) => Promise<Asset[]>
+  getAssetById: (id: number) => Promise<AssetDetailsApi>
   createAsset: (payload: AssetCreatePayload) => Promise<Asset>
   updateAsset: (id: number, payload: AssetUpdatePayload) => Promise<Asset>
   deleteAsset: (id: number) => Promise<void>
@@ -32,6 +34,20 @@ export function useAssets(): UseAssetsResult {
       return res
     } catch (e: unknown) {
       const message = errorMessageFromUnknown(e, 'Erreur lors du chargement des matériels.')
+      setError(String(message))
+      throw e
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const getById = useCallback(async (id: number) => {
+    setLoading(true)
+    setError(null)
+    try {
+      return await getAssetByIdService(id)
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, 'Erreur lors du chargement du détail du matériel.')
       setError(String(message))
       throw e
     } finally {
@@ -81,6 +97,6 @@ export function useAssets(): UseAssetsResult {
     }
   }, [])
 
-  return { fetchAssets, createAsset: create, updateAsset: update, deleteAsset: remove, loading, error }
+  return { fetchAssets, getAssetById: getById, createAsset: create, updateAsset: update, deleteAsset: remove, loading, error }
 }
 

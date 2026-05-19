@@ -45,11 +45,11 @@ export function Modal({
       aria-labelledby="modal-title"
     >
       <div
-        className="absolute inset-0 bg-black/50"
+        className="modal-backdrop-enter absolute inset-0 bg-black/50"
         onClick={closeOnBackdrop ? onClose : undefined}
         aria-hidden="true"
       />
-      <div className="relative z-10 w-full max-w-md rounded-lg border border-gray-200 bg-white shadow-xl">
+      <div className="modal-panel-enter relative z-10 w-full max-w-md rounded-lg border border-gray-200 bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
           <h2 id="modal-title" className="text-lg font-semibold text-gray-900">
             {title}
