@@ -16,6 +16,7 @@ import type { Asset, AssetDetailsApi, AssetStatus, Assignment, ScreenLoan } from
 import type { Supplier } from '../api/services/suppliers.service'
 import type { MaterialType } from '../api/services/material-types.service'
 import { StatusBadge } from '../components/Badge'
+import { CalendarFilterModal, type CalendarFilterValue } from '../components/CalendarFilterModal'
 import { DrawerAssets, type AssetCreateFormState } from '../components/drawers/DrawerAssets'
 import { DrawerAssetsUpdate } from '../components/drawers/DrawerAssetsUpdate'
 import { DrawerAssignments } from '../components/drawers/DrawerAssignments'
@@ -84,6 +85,61 @@ function warrantyLabel(asset: Asset): string {
   return '—'
 }
 
+function startOfDay(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function endOfDay(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(23, 59, 59, 999)
+  return d
+}
+
+function selectedAssetDateRange(value: CalendarFilterValue): { start: Date; end: Date } | null {
+  if (!value) return null
+
+  if (Array.isArray(value)) {
+    const [rawStart, rawEnd] = value
+    const start = rawStart ?? rawEnd
+    const end = rawEnd ?? rawStart
+
+    if (!start || !end) return null
+
+    return {
+      start: startOfDay(start),
+      end: endOfDay(end),
+    }
+  }
+
+  return {
+    start: startOfDay(value),
+    end: endOfDay(value),
+  }
+}
+
+function assetDateRangeLabel(value: CalendarFilterValue): string {
+  const range = selectedAssetDateRange(value)
+  if (!range) return 'Date'
+
+  const start = formatDate(range.start.toISOString())
+  const end = formatDate(range.end.toISOString())
+
+  return start === end ? start : `${start} - ${end}`
+}
+
+function assetMatchesDateRange(asset: Asset, value: CalendarFilterValue): boolean {
+  const range = selectedAssetDateRange(value)
+  if (!range) return true
+
+  const entryDate = new Date(asset.entryDate)
+  if (Number.isNaN(entryDate.getTime())) return false
+
+  const time = entryDate.getTime()
+  return time >= range.start.getTime() && time <= range.end.getTime()
+}
+
 function assignmentUserNames(user: Assignment['user']): string[] {
   if (typeof user === 'string') {
     return user
@@ -135,6 +191,19 @@ function PrintIcon({ className }: { className?: string }) {
         strokeLinejoin="round"
         strokeWidth={2}
         d="M6 9V4h12v5M6 18h12v2H6v-2zm12-3h1a2 2 0 002-2v-3a2 2 0 00-2-2H5a2 2 0 00-2 2v3a2 2 0 002 2h1m12 0H6v-4h12v4z"
+      />
+    </svg>
+  )
+}
+
+function CalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z"
       />
     </svg>
   )
@@ -609,6 +678,8 @@ export function AssetsPage() {
   const [q, setQ] = useState('')
   const [type, setType] = useState('')
   const [status, setStatus] = useState<AssetStatus | ''>('')
+  const [dateFilterOpen, setDateFilterOpen] = useState(false)
+  const [entryDateRange, setEntryDateRange] = useState<CalendarFilterValue>(null)
 
   const [allAssets, setAllAssets] = useState<Asset[]>([])
 
@@ -708,7 +779,12 @@ export function AssetsPage() {
     [activeScreenLoans],
   )
 
-  const filteredItems = useMemo(() => items.filter((a) => assetMatchesQuery(a, q)), [items, q])
+  const filteredItems = useMemo(
+    () => items.filter((a) => assetMatchesQuery(a, q) && assetMatchesDateRange(a, entryDateRange)),
+    [entryDateRange, items, q],
+  )
+  const entryDateRangeText = useMemo(() => assetDateRangeLabel(entryDateRange), [entryDateRange])
+  const hasEntryDateRange = selectedAssetDateRange(entryDateRange) != null
 
   function load() {
     setError(null)
@@ -1028,6 +1104,20 @@ export function AssetsPage() {
         loading={previewLoading}
         error={previewError}
       />
+      <CalendarFilterModal
+        open={dateFilterOpen}
+        title="Filtrer par date d'entree"
+        value={entryDateRange}
+        onClose={() => setDateFilterOpen(false)}
+        onApply={(value) => {
+          setEntryDateRange(value)
+          setDateFilterOpen(false)
+        }}
+        onClear={() => {
+          setEntryDateRange(null)
+          setDateFilterOpen(false)
+        }}
+      />
       <div className="flex items-center justify-between">
         <PageTitle>Gestion de Stock</PageTitle>
         <div className="flex flex-wrap items-center gap-2">
@@ -1164,6 +1254,17 @@ export function AssetsPage() {
             >
               <PrintIcon className="h-5 w-5" />
             </Button>
+            <Button
+              type="button"
+              variant={hasEntryDateRange ? 'primary' : 'default'}
+              onClick={() => setDateFilterOpen(true)}
+              className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
+              title={`Date d'entree: ${entryDateRangeText}`}
+              aria-label="Filtrer par date d'entree"
+            >
+              <CalendarIcon className="h-4 w-4" />
+              <span className="ml-1 hidden sm:inline">{hasEntryDateRange ? entryDateRangeText : 'Date'}</span>
+            </Button>
             <Button onClick={load} className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" disabled={loading}>
               Filtrer
             </Button>
@@ -1172,6 +1273,7 @@ export function AssetsPage() {
                 setQ('')
                 setType('')
                 setStatus('')
+                setEntryDateRange(null)
                 setTimeout(load, 0)
               }}
               disabled={loading}

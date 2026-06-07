@@ -8,6 +8,7 @@ type ModalProps = PropsWithChildren<{
   open: boolean
   onClose: () => void
   title: string
+  size?: 'md' | 'lg' | 'xl'
   /** Contenu du pied (ex: boutons). Si non fourni, aucun footer. */
   footer?: React.ReactNode
   /** Fermer au clic sur le fond (backdrop). Défaut: true */
@@ -18,6 +19,7 @@ export function Modal({
   open,
   onClose,
   title,
+  size = 'md',
   children,
   footer,
   closeOnBackdrop = true,
@@ -37,6 +39,8 @@ export function Modal({
 
   if (!open) return null
 
+  const sizeClass = size === 'xl' ? 'max-w-2xl' : size === 'lg' ? 'max-w-xl' : 'max-w-md'
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -49,7 +53,7 @@ export function Modal({
         onClick={closeOnBackdrop ? onClose : undefined}
         aria-hidden="true"
       />
-      <div className="modal-panel-enter relative z-10 w-full max-w-md rounded-lg border border-gray-200 bg-white shadow-xl">
+      <div className={`modal-panel-enter relative z-10 w-full ${sizeClass} rounded-lg border border-gray-200 bg-white shadow-xl`}>
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
           <h2 id="modal-title" className="text-lg font-semibold text-gray-900">
             {title}
