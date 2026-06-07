@@ -116,3 +116,75 @@ body {
   animation: skeletonShimmer 1.2s ease-in-out infinite;
 }
 
+.app-calendar-modal .react-calendar {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  color: #111827;
+  font-family: inherit;
+}
+
+.app-calendar-modal .react-calendar__navigation {
+  height: 48px;
+  margin-bottom: 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.app-calendar-modal .react-calendar__navigation button {
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.app-calendar-modal .react-calendar__navigation button:enabled:hover,
+.app-calendar-modal .react-calendar__navigation button:enabled:focus {
+  background: #f9fafb;
+}
+
+.app-calendar-modal .react-calendar__month-view__weekdays {
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.app-calendar-modal .react-calendar__month-view__weekdays__weekday {
+  padding: 8px 4px;
+}
+
+.app-calendar-modal .react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none;
+}
+
+.app-calendar-modal .react-calendar__tile {
+  padding: 14px 8px;
+  color: #374151;
+  font-size: 13px;
+}
+
+.app-calendar-modal .react-calendar__tile:enabled:hover,
+.app-calendar-modal .react-calendar__tile:enabled:focus {
+  background: #f3f4f6;
+}
+
+.app-calendar-modal .react-calendar__tile--now {
+  background: #ecfdf5;
+  color: #166534;
+  font-weight: 700;
+}
+
+.app-calendar-modal .react-calendar__tile--active,
+.app-calendar-modal .react-calendar__tile--rangeStart,
+.app-calendar-modal .react-calendar__tile--rangeEnd {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.app-calendar-modal .react-calendar__tile--range {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.app-calendar-modal .react-calendar__tile--neighboringMonth {
+  color: #9ca3af;
+}
+

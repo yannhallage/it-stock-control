@@ -29,6 +29,11 @@ export function downloadAssetsPdfService(): Promise<Blob> {
   return downloadPdf(ENDPOINTS.impression.assets)
 }
 
+export function downloadAssetPdfByInventoryNumberService(inventoryNumber: string): Promise<Blob> {
+  const query = new URLSearchParams({ inventoryNumber }).toString()
+  return downloadPdf(`${ENDPOINTS.impression.asset}?${query}`)
+}
+
 export function downloadAssignmentsPdfService(): Promise<Blob> {
   return downloadPdf(ENDPOINTS.impression.assignments)
 }
@@ -44,4 +49,12 @@ export function downloadSuppliersPdfService(): Promise<Blob> {
 
 export function downloadIncidentsPdfService(): Promise<Blob> {
   return downloadPdf(ENDPOINTS.impression.incidents)
+}
+
+export function downloadScreenLoansPdfService(): Promise<Blob> {
+  return downloadPdf(ENDPOINTS.impression.screenLoans)
+}
+
+export function downloadScreenLoanPdfByIdService(loanId: number): Promise<Blob> {
+  return downloadPdf(`${ENDPOINTS.impression.screenLoan}/${encodeURIComponent(String(loanId))}`)
 }

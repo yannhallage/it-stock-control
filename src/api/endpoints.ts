@@ -46,9 +46,12 @@ export const ENDPOINTS = {
   impression: {
     // Impression des rapports PDF
     assets: '/api/impression/printAssets',
+    asset: '/api/impression/printAsset',
     assignments: '/api/impression/printAssigment',
     suppliers: '/api/impression/printSuppliers',
     incidents: '/api/impression/printIncidents',
+    screenLoans: '/api/impression/printScreenLoans',
+    screenLoan: '/api/impression/printScreenLoan',
   },
   dashboard: '/api/dashboard',
 } as const

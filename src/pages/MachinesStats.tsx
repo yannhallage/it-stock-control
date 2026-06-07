@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as echarts from 'echarts'
 import type { EChartsOption } from 'echarts'
-import { get } from '../api/http'
-import { ENDPOINTS } from '../api/endpoints'
+import { fetchMachinesStatsService } from '../api/services/dashboard.service'
 import { formatDate } from '../lib/format'
 import type { MachinesStatsGranularity, MachinesStatsPoint } from '../types'
 import { Button, Card, PageTitle, Table } from '../components/Ui'
@@ -77,11 +76,17 @@ function MachinesActivityChart({
   const chartRef = useRef<echarts.ECharts | null>(null)
 
   useEffect(() => {
-    if (!containerRef.current || loading || !points.length) return
+    if (!containerRef.current) return
     if (!chartRef.current) {
       chartRef.current = echarts.init(containerRef.current)
     }
     const chart = chartRef.current
+
+    if (loading || !points.length) {
+      chart.clear()
+      return
+    }
+
     const labels = points.map((point) => formatPeriodLabel(point.periodStart, granularity))
 
     const option: EChartsOption = {
@@ -119,6 +124,8 @@ function MachinesActivityChart({
         type: 'line',
         smooth: true,
         symbolSize: 7,
+        lineStyle: { width: 2 },
+        areaStyle: { opacity: 0.05 },
         data: points.map((point) => point[serie.key]),
         animationDelay: index * 100,
         emphasis: { focus: 'series' },
@@ -126,6 +133,7 @@ function MachinesActivityChart({
     }
 
     chart.setOption(option, true)
+    requestAnimationFrame(() => chart.resize())
 
     const ro = new ResizeObserver(() => chart.resize())
     ro.observe(containerRef.current)
@@ -139,15 +147,21 @@ function MachinesActivityChart({
     }
   }, [])
 
-  if (loading) {
-    return <div className="flex h-[340px] items-center justify-center text-gray-500">Chargement…</div>
-  }
-
-  if (!points.length) {
-    return <div className="flex h-[340px] items-center justify-center text-gray-500">Aucune donnée.</div>
-  }
-
-  return <div ref={containerRef} className="h-[340px] w-full min-w-0" />
+  return (
+    <div className="relative h-[380px] w-full min-w-0">
+      <div
+        ref={containerRef}
+        className={`h-full w-full min-w-0 transition-opacity ${
+          loading || !points.length ? 'opacity-0' : 'opacity-100'
+        }`}
+      />
+      {loading || !points.length ? (
+        <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+          {loading ? 'Chargement...' : 'Aucune donnee.'}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 export function MachinesStatsPage() {
@@ -158,10 +172,9 @@ export function MachinesStatsPage() {
 
   useEffect(() => {
     let cancelled = false
-    const query = new URLSearchParams({ granularity }).toString()
     setLoading(true)
     setError(null)
-    get<MachinesStatsPoint[]>(`${ENDPOINTS.dashboard}/machines-stats?${query}`)
+    fetchMachinesStatsService(granularity)
       .then((data) => {
         if (!cancelled) setPoints(data ?? [])
       })
