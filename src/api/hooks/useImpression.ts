@@ -1,19 +1,23 @@
 import { useCallback, useState } from 'react'
 import {
+  downloadAssetPdfByInventoryNumberService,
   downloadAssignmentPdfByIdService,
   downloadAssetsPdfService,
   downloadAssignmentsPdfService,
   downloadIncidentsPdfService,
+  downloadScreenLoanPdfByIdService,
+  downloadScreenLoansPdfService,
   downloadSuppliersPdfService,
 } from '../services/impression.service'
 
-type DownloadKind = 'assets' | 'assignments' | 'suppliers' | 'incidents'
+type DownloadKind = 'assets' | 'assignments' | 'suppliers' | 'incidents' | 'screenLoans'
 
 const fileNameByKind: Record<DownloadKind, string> = {
   assets: 'assets-report.pdf',
   assignments: 'assignments-report.pdf',
   suppliers: 'suppliers-report.pdf',
   incidents: 'incidents-report.pdf',
+  screenLoans: 'screen-loans-report.pdf',
 }
 
 function saveBlob(blob: Blob, fileName: string) {
@@ -25,6 +29,10 @@ function saveBlob(blob: Blob, fileName: string) {
   link.click()
   link.remove()
   URL.revokeObjectURL(url)
+}
+
+function safeFileNameSegment(value: string) {
+  return value.replace(/[^a-zA-Z0-9._-]/g, '_')
 }
 
 export function useImpression() {
@@ -42,7 +50,9 @@ export function useImpression() {
             ? await downloadAssignmentsPdfService()
             : kind === 'suppliers'
               ? await downloadSuppliersPdfService()
-              : await downloadIncidentsPdfService()
+              : kind === 'incidents'
+                ? await downloadIncidentsPdfService()
+                : await downloadScreenLoansPdfService()
 
       saveBlob(blob, fileNameByKind[kind])
     } catch (e: unknown) {
@@ -69,5 +79,42 @@ export function useImpression() {
     }
   }, [])
 
-  return { downloadReport, downloadAssignmentReport, loading, error }
+  const downloadAssetReport = useCallback(async (inventoryNumber: string) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const blob = await downloadAssetPdfByInventoryNumberService(inventoryNumber)
+      saveBlob(blob, `materiel-${safeFileNameSegment(inventoryNumber)}.pdf`)
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Erreur lors du tÃ©lÃ©chargement du rapport PDF."
+      setError(message)
+      throw e
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const downloadScreenLoanReport = useCallback(async (loanId: number) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const blob = await downloadScreenLoanPdfByIdService(loanId)
+      saveBlob(blob, `emprunt-${loanId}.pdf`)
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Erreur lors du tÃ©lÃ©chargement du rapport PDF."
+      setError(message)
+      throw e
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  return {
+    downloadReport,
+    downloadAssignmentReport,
+    downloadAssetReport,
+    downloadScreenLoanReport,
+    loading,
+    error,
+  }
 }

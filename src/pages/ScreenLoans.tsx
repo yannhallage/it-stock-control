@@ -4,6 +4,7 @@ import 'react-calendar/dist/Calendar.css'
 import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
+import { useImpression } from '../api/hooks/useImpression'
 import { useScreenLoans } from '../api/hooks/useScreenLoans'
 import { formatDate } from '../lib/format'
 import type { Asset, ScreenLoan, ScreenLoanStatus } from '../types'
@@ -159,6 +160,12 @@ export function ScreenLoansPage() {
     loading: loansLoading,
     error: loansError,
   } = useScreenLoans()
+  const {
+    downloadReport,
+    downloadScreenLoanReport,
+    loading: printLoading,
+    error: printError,
+  } = useImpression()
 
   const loading = assetsLoading || loansLoading
 
@@ -273,12 +280,22 @@ export function ScreenLoansPage() {
     }
   }
 
-  function handlePrintAll() {
-    toast.info("Impression de tous les emprunts non branchée à l'API.")
+  async function handlePrintAll() {
+    try {
+      await downloadReport('screenLoans')
+      toast.success('Rapport des emprunts telecharge.')
+    } catch {
+      toast.error("Erreur lors de l'impression des emprunts.")
+    }
   }
 
-  function handlePrintLoan(loanId: number) {
-    toast.info(`Impression de l'emprunt #${loanId} non branchée à l'API.`)
+  async function handlePrintLoan(loanId: number) {
+    try {
+      await downloadScreenLoanReport(loanId)
+      toast.success('Fiche emprunt telechargee.')
+    } catch {
+      toast.error("Erreur lors de l'impression de l'emprunt.")
+    }
   }
 
   function handleDateRangeChange(nextValue: CalendarValue) {
@@ -299,6 +316,7 @@ export function ScreenLoansPage() {
             title="Imprimer tous les emprunts"
             aria-label="Imprimer tous les emprunts"
             onClick={handlePrintAll}
+            disabled={printLoading}
           >
             <PrintIcon className="h-5 w-5" />
           </Button>
@@ -322,9 +340,9 @@ export function ScreenLoansPage() {
         </div>
       </div>
 
-      {error ?? assetsError ?? loansError ? (
+      {error ?? assetsError ?? loansError ?? printError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          {error ?? assetsError ?? loansError}
+          {error ?? assetsError ?? loansError ?? printError}
         </div>
       ) : null}
 
@@ -486,6 +504,7 @@ export function ScreenLoansPage() {
                       title="Imprimer cet emprunt"
                       aria-label={`Imprimer l'emprunt ${loan.id}`}
                       onClick={() => handlePrintLoan(loan.id)}
+                      disabled={printLoading}
                     >
                       <PrintIcon className="h-4 w-4" />
                     </Button>

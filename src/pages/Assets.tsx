@@ -379,6 +379,7 @@ type AssetActionsMenuProps = {
   onEdit: (asset: Asset) => void
   onAssign: (assetId: number) => void
   onLoan: (assetId: number) => void
+  onPrint: (inventoryNumber: string) => void
   onDelete: (assetId: number) => void
 }
 
@@ -391,6 +392,7 @@ function AssetActionsMenu({
   onEdit,
   onAssign,
   onLoan,
+  onPrint,
   onDelete,
 }: AssetActionsMenuProps) {
   const [open, setOpen] = useState(false)
@@ -416,7 +418,7 @@ function AssetActionsMenu({
     const trigger = triggerRef.current
     if (!trigger) return
     const rect = trigger.getBoundingClientRect()
-    const menuHeight = 270
+    const menuHeight = 310
     const opensUp = rect.bottom + menuHeight > window.innerHeight && rect.top > menuHeight
     const next: ActionMenuPosition = {
       right: Math.max(8, window.innerWidth - rect.right),
@@ -563,6 +565,18 @@ function AssetActionsMenu({
                 Emprunter
               </button>
 
+              <button
+                type="button"
+                className={`${itemClass} ${loading ? disabledClass : enabledClass}`}
+                title="Imprimer la fiche du materiel"
+                role="menuitem"
+                disabled={loading}
+                onClick={() => !loading && runAction(() => onPrint(asset.inventoryNumber))}
+              >
+                <PrintIcon className="h-3.5 w-3.5" />
+                Imprimer
+              </button>
+
               <div className="my-1 border-t border-gray-100" />
 
               <button
@@ -641,7 +655,7 @@ export function AssetsPage() {
 
   const { fetchAssets, getAssetById, createAsset, updateAsset, deleteAsset, loading, error: apiError } = useAssets()
   const { createAssignmentForAsset, loading: assignmentLoading, error: assignmentError } = useAssignments()
-  const { downloadReport, loading: printLoading, error: printError } = useImpression()
+  const { downloadReport, downloadAssetReport, loading: printLoading, error: printError } = useImpression()
   const {
     fetchScreenLoans,
     createScreenLoan,
@@ -984,6 +998,15 @@ export function AssetsPage() {
     }
   }
 
+  const handlePrintAsset = async (inventoryNumber: string) => {
+    try {
+      await downloadAssetReport(inventoryNumber)
+      toast.success('Fiche materiel telechargee.')
+    } catch {
+      toast.error("Erreur lors de l'impression du materiel.")
+    }
+  }
+
   return (
     <div className="space-y-6">
       <ConfirmModal
@@ -1200,13 +1223,14 @@ export function AssetsPage() {
               <td className="px-4 py-3">
                 <AssetActionsMenu
                   asset={a}
-                  loading={loading}
+                  loading={loading || printLoading}
                   loanLoading={screenLoanLoading}
                   isLoanActive={activeLoanAssetIds.has(a.id)}
                   onView={openPreview}
                   onEdit={openEdit}
                   onAssign={openAssignmentDrawerForAsset}
                   onLoan={openScreenLoanDrawerForAsset}
+                  onPrint={handlePrintAsset}
                   onDelete={setAssetToDelete}
                 />
               </td>
