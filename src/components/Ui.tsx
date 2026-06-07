@@ -3,7 +3,7 @@ import type { PropsWithChildren } from 'react'
 
 export function PageTitle({ children }: PropsWithChildren) {
   return (
-    <h1 className="flex items-center gap-3 text-2xl font-semibold text-gray-900">
+    <h1 className="flex min-w-0 items-center gap-3 text-2xl font-semibold text-gray-900">
       {children}
     </h1>
   )
@@ -15,16 +15,16 @@ export function Card({
   action,
 }: PropsWithChildren<{ title?: string; action?: React.ReactNode }>) {
   return (
-    <section className=" border border-gray-200 bg-white shadow-sm">
+    <section className="min-w-0 border border-gray-200 bg-white shadow-sm">
       {title != null ? (
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-          <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
+        <div className="flex min-w-0 items-center justify-between gap-3 border-b border-gray-100 px-4 py-4 sm:px-5">
+          <h2 className="min-w-0 truncate text-sm font-semibold text-gray-900">{title}</h2>
           {action != null ? (
             <div className="flex items-center gap-1">{action}</div>
           ) : null}
         </div>
       ) : null}
-      <div className="p-5">{children}</div>
+      <div className="min-w-0 p-4 sm:p-5">{children}</div>
     </section>
   )
 }
@@ -119,8 +119,8 @@ export function Table({
   children,
 }: PropsWithChildren<{ columns: string[] }>) {
   return (
-    <div className="overflow-x-auto  border border-gray-200 bg-white">
-      <table className="w-full border-collapse text-sm">
+    <div className="w-full min-w-0 overflow-x-auto border border-gray-200 bg-white">
+      <table className="w-full min-w-max border-collapse text-sm">
         <thead>
           <tr className="bg-gray-50">
             {columns.map((c) => (
