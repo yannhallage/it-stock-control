@@ -8,6 +8,7 @@ import {
   downloadScreenLoanPdfByIdService,
   downloadScreenLoansPdfService,
   downloadSuppliersPdfService,
+  type AssetsPdfFilters,
 } from '../services/impression.service'
 
 type DownloadKind = 'assets' | 'assignments' | 'suppliers' | 'incidents' | 'screenLoans'
@@ -39,13 +40,13 @@ export function useImpression() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const downloadReport = useCallback(async (kind: DownloadKind) => {
+  const downloadReport = useCallback(async (kind: DownloadKind, filters?: AssetsPdfFilters) => {
     setLoading(true)
     setError(null)
     try {
       const blob =
         kind === 'assets'
-          ? await downloadAssetsPdfService()
+          ? await downloadAssetsPdfService(filters)
           : kind === 'assignments'
             ? await downloadAssignmentsPdfService()
             : kind === 'suppliers'

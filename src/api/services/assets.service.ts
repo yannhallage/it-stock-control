@@ -8,6 +8,8 @@ export type ListAssetsParams = {
   type?: string
   status?: AssetStatus | ''
   with?: string
+  entryDateFrom?: string
+  entryDateTo?: string
 }
 
 export type AssetCreatePayload = {
@@ -36,10 +38,12 @@ function normalizeAsset(asset: RawAsset): Asset {
 
 export function listAssetsService(params: ListAssetsParams = {}): Promise<Asset[]> {
   const searchParams = new URLSearchParams()
-  if (params.q) searchParams.set('q', params.q)
+  if (params.q) searchParams.set('search', params.q)
   if (params.type) searchParams.set('type', params.type)
   if (params.status) searchParams.set('status', params.status)
   if (params.with) searchParams.set('with', params.with)
+  if (params.entryDateFrom) searchParams.set('entryDateFrom', params.entryDateFrom)
+  if (params.entryDateTo) searchParams.set('entryDateTo', params.entryDateTo)
 
   const query = searchParams.toString()
   const path = query ? `${ENDPOINTS.assets.base}?${query}` : ENDPOINTS.assets.base

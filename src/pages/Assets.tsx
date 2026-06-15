@@ -129,6 +129,16 @@ function assetDateRangeLabel(value: CalendarFilterValue): string {
   return start === end ? start : `${start} - ${end}`
 }
 
+function assetDateRangePrintFilters(value: CalendarFilterValue): { entryDateFrom?: string; entryDateTo?: string } {
+  const range = selectedAssetDateRange(value)
+  if (!range) return {}
+
+  return {
+    entryDateFrom: range.start.toISOString(),
+    entryDateTo: range.end.toISOString(),
+  }
+}
+
 function assetMatchesDateRange(asset: Asset, value: CalendarFilterValue): boolean {
   const range = selectedAssetDateRange(value)
   if (!range) return true
@@ -1067,7 +1077,12 @@ export function AssetsPage() {
 
   const handlePrint = async () => {
     try {
-      await downloadReport('assets')
+      await downloadReport('assets', {
+        search: q,
+        type,
+        status,
+        ...assetDateRangePrintFilters(entryDateRange),
+      })
       toast.success('Rapport PDF téléchargé.')
     } catch {
       toast.error("Erreur lors de l'impression du rapport.")
@@ -1249,7 +1264,7 @@ export function AssetsPage() {
             <Button
               onClick={handlePrint}
               className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
-              title="Imprimer"
+              title="Imprimer les resultats filtres"
               disabled={printLoading}
             >
               <PrintIcon className="h-5 w-5" />

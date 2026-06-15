@@ -1,5 +1,14 @@
 import { ENDPOINTS, buildUrl } from '../endpoints'
 import { getSession, handleAuthenticationFailure } from '../../lib/auth'
+import type { AssetStatus } from '../../types'
+
+export type AssetsPdfFilters = {
+  search?: string
+  type?: string
+  status?: AssetStatus | ''
+  entryDateFrom?: string
+  entryDateTo?: string
+}
 
 async function downloadPdf(path: string): Promise<Blob> {
   const session = getSession()
@@ -25,8 +34,17 @@ async function downloadPdf(path: string): Promise<Blob> {
   return res.blob()
 }
 
-export function downloadAssetsPdfService(): Promise<Blob> {
-  return downloadPdf(ENDPOINTS.impression.assets)
+export function downloadAssetsPdfService(filters: AssetsPdfFilters = {}): Promise<Blob> {
+  const searchParams = new URLSearchParams()
+
+  if (filters.search?.trim()) searchParams.set('search', filters.search.trim())
+  if (filters.type?.trim()) searchParams.set('type', filters.type.trim())
+  if (filters.status) searchParams.set('status', filters.status)
+  if (filters.entryDateFrom) searchParams.set('entryDateFrom', filters.entryDateFrom)
+  if (filters.entryDateTo) searchParams.set('entryDateTo', filters.entryDateTo)
+
+  const query = searchParams.toString()
+  return downloadPdf(query ? `${ENDPOINTS.impression.assets}?${query}` : ENDPOINTS.impression.assets)
 }
 
 export function downloadAssetPdfByInventoryNumberService(inventoryNumber: string): Promise<Blob> {
