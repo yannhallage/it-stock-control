@@ -129,6 +129,16 @@ function assetDateRangeLabel(value: CalendarFilterValue): string {
   return start === end ? start : `${start} - ${end}`
 }
 
+function assetDateRangePrintFilters(value: CalendarFilterValue): { entryDateFrom?: string; entryDateTo?: string } {
+  const range = selectedAssetDateRange(value)
+  if (!range) return {}
+
+  return {
+    entryDateFrom: range.start.toISOString(),
+    entryDateTo: range.end.toISOString(),
+  }
+}
+
 function assetMatchesDateRange(asset: Asset, value: CalendarFilterValue): boolean {
   const range = selectedAssetDateRange(value)
   if (!range) return true
@@ -1067,7 +1077,12 @@ export function AssetsPage() {
 
   const handlePrint = async () => {
     try {
-      await downloadReport('assets')
+      await downloadReport('assets', {
+        search: q,
+        type,
+        status,
+        ...assetDateRangePrintFilters(entryDateRange),
+      })
       toast.success('Rapport PDF téléchargé.')
     } catch {
       toast.error("Erreur lors de l'impression du rapport.")
@@ -1084,7 +1099,7 @@ export function AssetsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <ConfirmModal
         open={assetToDelete != null}
         onClose={() => setAssetToDelete(null)}
@@ -1118,9 +1133,9 @@ export function AssetsPage() {
           setDateFilterOpen(false)
         }}
       />
-      <div className="flex items-center justify-between">
+      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <PageTitle>Gestion de Stock</PageTitle>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
           <Button
             variant="primary"
             onClick={() => setDrawerOpen(true)}
@@ -1219,7 +1234,7 @@ export function AssetsPage() {
       />
 
       <Card title="Liste du matériel">
-        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+        <div className="mb-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Input
             label="Recherche"
             placeholder="Inventaire, n° série, type, marque, modèle, fournisseur…"
@@ -1245,11 +1260,11 @@ export function AssetsPage() {
               </option>
             ))}
           </Select>
-          <div className="flex items-end gap-2">
+          <div className="flex flex-wrap items-end gap-2 sm:col-span-2 xl:col-span-1">
             <Button
               onClick={handlePrint}
               className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
-              title="Imprimer"
+              title="Imprimer les resultats filtres"
               disabled={printLoading}
             >
               <PrintIcon className="h-5 w-5" />

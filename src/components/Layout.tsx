@@ -225,7 +225,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div className="min-h-screen overflow-x-hidden bg-white text-gray-900">
       {/* Sidebar fixe : pas de scroll, toujours visible */}
       <aside
         className="fixed inset-y-0 left-0 z-20 flex h-screen w-16 shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white"
@@ -278,13 +278,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Zone principale : marge gauche = largeur sidebar, seul le main scrolle */}
-      <div className="flex min-h-screen flex-col pl-16">
+      <div className="flex min-h-screen min-w-0 flex-col pl-16">
         {/* Barre d'onglets horizontale + contrôles */}
-        <header className="flex shrink-0 flex-col border-b border-gray-200 bg-white">
-          <div className="flex items-center justify-between px-6 pt-4">
+        <header className="flex min-w-0 shrink-0 flex-col border-b border-gray-200 bg-white">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 px-4 pt-4 sm:px-6">
             <h1 className="text-lg font-semibold text-gray-900">Parc Info</h1>
             <div className="flex items-center gap-2">
-              <span className="rounded border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600">
+              <span className="shrink-0 rounded border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600">
                 {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
               </span>
               {/* <button
@@ -299,7 +299,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </button> */}
             </div>
           </div>
-          <nav className="mt-4 flex gap-1 overflow-x-auto px-6">
+          <nav className="mt-4 flex min-w-0 gap-1 overflow-x-auto px-4 sm:px-6">
             {navItems.map((item) => {
               const active = isActive(item.to)
               return (
@@ -319,7 +319,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </nav>
         </header>
 
-        <main className="flex-1 overflow-auto bg-[#fafafa] p-6">{children}</main>
+        <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-[#fafafa] p-4 sm:p-6">
+          {children}
+        </main>
       </div>
 
       {/* Modal d'avertissement déconnexion */}
