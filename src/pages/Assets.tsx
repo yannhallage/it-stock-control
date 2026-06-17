@@ -79,9 +79,24 @@ function assetMatchesQuery(a: Asset, query: string): boolean {
   return hay.includes(q)
 }
 
+function diffInMonths(start: string, end: string): number | null {
+  const startDate = new Date(start)
+  const endDate = new Date(end)
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return null
+  let months =
+    (endDate.getFullYear() - startDate.getFullYear()) * 12 +
+    (endDate.getMonth() - startDate.getMonth())
+  if (endDate.getDate() < startDate.getDate()) months -= 1
+  return months > 0 ? months : null
+}
+
 function warrantyLabel(asset: Asset): string {
-  if (asset.warrantyEndDate) return `Jusqu'au ${formatDate(asset.warrantyEndDate)}`
   if (typeof asset.warrantyMonths === 'number') return `${asset.warrantyMonths} mois`
+  if (asset.warrantyEndDate) {
+    const start = asset.warrantyStartDate ?? asset.entryDate
+    const months = diffInMonths(start, asset.warrantyEndDate)
+    if (months !== null) return `${months} mois`
+  }
   return '—'
 }
 

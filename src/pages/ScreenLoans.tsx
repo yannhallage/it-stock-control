@@ -37,6 +37,13 @@ function loanStatus(loan: ScreenLoan): ScreenLoanStatus {
   return loan.returnedAt ? 'RETURNED' : 'NOT_RETURNED'
 }
 
+function borrowerFullName(loan: ScreenLoan): string {
+  return [loan.borrowerLastName, loan.borrowerFirstName]
+    .map((part) => (part ?? '').trim())
+    .filter(Boolean)
+    .join(' ')
+}
+
 function isOverdue(loan: ScreenLoan) {
   if (loan.returnedAt) return false
   const expected = new Date(loan.expectedReturnDate)
@@ -249,7 +256,8 @@ export function ScreenLoansPage() {
         if (!query) return true
         const asset = loan.asset ?? assetsById.get(loan.assetId)
         const searchable = [
-          loan.borrowerName,
+          loan.borrowerLastName,
+          loan.borrowerFirstName,
           loan.borrowerDepartment ?? '',
           loan.note ?? '',
           asset?.inventoryNumber ?? '',
@@ -473,7 +481,7 @@ export function ScreenLoansPage() {
                   {asset ? <StatusBadge status={asset.status} /> : '—'}
                 </td>
                 <td className="border-b border-slate-100 px-3 py-2 text-[13px] text-gray-700">
-                  {loan.borrowerName}
+                  {borrowerFullName(loan) || '—'}
                 </td>
                 <td className="border-b border-slate-100 px-3 py-2 text-[13px] text-gray-700">
                   {loan.borrowerDepartment || '—'}

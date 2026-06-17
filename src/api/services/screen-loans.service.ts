@@ -9,7 +9,8 @@ export type ListScreenLoansParams = {
 
 export type CreateScreenLoanPayload = {
   assetId: number
-  borrowerName: string
+  borrowerFirstName: string
+  borrowerLastName: string
   borrowerDepartment?: string
   loanDate: string
   expectedReturnDate: string

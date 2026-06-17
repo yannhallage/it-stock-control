@@ -104,7 +104,8 @@ export type ScreenLoanStatus = 'RETURNED' | 'NOT_RETURNED'
 export type ScreenLoan = {
   id: number
   assetId: number
-  borrowerName: string
+  borrowerFirstName: string
+  borrowerLastName: string
   borrowerDepartment?: string | null
   loanDate: string
   expectedReturnDate: string

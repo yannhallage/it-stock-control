@@ -35,7 +35,8 @@ export function DrawerScreenLoan({
   const [visible, setVisible] = useState(isOpen)
   const [submitting, setSubmitting] = useState(false)
   const [assetId, setAssetId] = useState<number | ''>('')
-  const [borrowerName, setBorrowerName] = useState('')
+  const [borrowerLastName, setBorrowerLastName] = useState('')
+  const [borrowerFirstName, setBorrowerFirstName] = useState('')
   const [borrowerDepartment, setBorrowerDepartment] = useState('')
   const [loanDate, setLoanDate] = useState(new Date().toISOString().slice(0, 10))
   const [expectedReturnDate, setExpectedReturnDate] = useState(new Date().toISOString().slice(0, 10))
@@ -67,7 +68,8 @@ export function DrawerScreenLoan({
     const selectedAssetId =
       initialAssetId && availableAssets.some((asset) => asset.id === initialAssetId) ? initialAssetId : ''
     setAssetId(selectedAssetId)
-    setBorrowerName('')
+    setBorrowerLastName('')
+    setBorrowerFirstName('')
     setBorrowerDepartment('')
     const today = new Date().toISOString().slice(0, 10)
     setLoanDate(today)
@@ -99,8 +101,12 @@ export function DrawerScreenLoan({
       toast.warning('Veuillez sélectionner un matériel.')
       return
     }
-    if (!borrowerName.trim()) {
+    if (!borrowerLastName.trim()) {
       toast.warning("Veuillez renseigner le nom de l'emprunteur.")
+      return
+    }
+    if (!borrowerFirstName.trim()) {
+      toast.warning("Veuillez renseigner le prénom de l'emprunteur.")
       return
     }
     if (!loanDate || !expectedReturnDate) {
@@ -116,7 +122,8 @@ export function DrawerScreenLoan({
     try {
       await createScreenLoan({
         assetId: Number(assetId),
-        borrowerName: borrowerName.trim(),
+        borrowerLastName: borrowerLastName.trim(),
+        borrowerFirstName: borrowerFirstName.trim(),
         borrowerDepartment: borrowerDepartment.trim() || undefined,
         loanDate,
         expectedReturnDate,
@@ -190,8 +197,14 @@ export function DrawerScreenLoan({
               </div>
               <Input
                 label="Nom de l'emprunteur"
-                value={borrowerName}
-                onChange={(e) => setBorrowerName(e.target.value)}
+                value={borrowerLastName}
+                onChange={(e) => setBorrowerLastName(e.target.value)}
+                disabled={submitting}
+              />
+              <Input
+                label="Prénom de l'emprunteur"
+                value={borrowerFirstName}
+                onChange={(e) => setBorrowerFirstName(e.target.value)}
                 disabled={submitting}
               />
               <Input

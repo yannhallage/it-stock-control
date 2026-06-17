@@ -4,7 +4,7 @@ import { toast } from 'react-toastify'
 import { ClipLoader } from 'react-spinners'
 import { getAssetByIdService } from '../api/services/assets.service'
 import { assetStatusLabel, formatDate } from '../lib/format'
-import type { Assignment, HistoryEvent } from '../types'
+import type { Assignment, AssetStatus, HistoryEvent } from '../types'
 import type { AssetDetailsApi, RepairFromApi } from '../types'
 import { StatusBadge } from '../components/Badge'
 import { Button, Card, PageTitle } from '../components/Ui'
@@ -95,6 +95,64 @@ const HISTORY_TYPE_LABELS: Record<HistoryEvent['type'], string> = {
   REPAIR_FINISHED: 'Réparation terminée',
 }
 
+const HISTORY_PAYLOAD_LABELS: Record<string, string> = {
+  inventoryNumber: 'N° d\'inventaire',
+  type: 'Type',
+  brand: 'Marque',
+  model: 'Modèle',
+  supplier: 'Fournisseur',
+  status: 'État',
+  entryDate: 'Date d\'entrée',
+  warrantyStartDate: 'Début de garantie',
+  warrantyEndDate: 'Fin de garantie',
+  from: 'Ancien état',
+  to: 'Nouvel état',
+  screenLoanId: 'N° de prêt',
+  borrowerFirstName: 'Prénom',
+  borrowerLastName: 'Nom',
+  // borrowerFirstName: 'Prénom de l\'emprunteur',
+  // borrowerLastName: 'Nom de l\'emprunteur',
+  returnedAt: 'Date de retour',
+  assignmentId: 'N° d\'affectation',
+  department: 'Service',
+  user: 'Utilisateur',
+  startDate: 'Date de début',
+  endDate: 'Date de fin',
+  repairId: 'N° de réparation',
+  incidentId: 'N° d\'incident',
+  workshopEntryDate: 'Entrée à l\'atelier',
+  workshopExitDate: 'Sortie de l\'atelier',
+  technicianName: 'Technicien',
+  action: 'Action réalisée',
+  outcome: 'Résultat',
+  previousAssetStatus: 'État précédent',
+  description: 'Description',
+  reportedAt: 'Date de signalement',
+  reason: 'Motif',
+}
+
+const HISTORY_REASON_LABELS: Record<string, string> = {
+  incident_reported: 'Incident signalé',
+}
+
+const HISTORY_STATUS_KEYS = new Set([
+  'status',
+  'from',
+  'to',
+  'outcome',
+  'previousAssetStatus',
+])
+
+function formatHistoryEntry(key: string, value: unknown): string {
+  if (HISTORY_STATUS_KEYS.has(key) && typeof value === 'string') {
+    return assetStatusLabel(value as AssetStatus)
+  }
+  if (key === 'reason' && typeof value === 'string') {
+    return HISTORY_REASON_LABELS[value] ?? value
+  }
+  return formatHistoryPayloadValue(value)
+}
+
 function formatAssignmentUser(user: Assignment['user']): string {
   if (typeof user === 'string') return user
   if (user && typeof user === 'object' && Array.isArray((user as { names?: string[] }).names))
@@ -175,9 +233,9 @@ function HistoryTimeline({ events }: { events: HistoryEvent[] }) {
                   <dl className="mt-2 grid grid-cols-1 gap-1 text-xs sm:grid-cols-2">
                     {Object.entries(h.payload).map(([k, v]) => (
                       <div key={k} className="flex gap-2">
-                        <dt className="shrink-0 font-medium text-slate-600">{k}:</dt>
+                        <dt className="shrink-0 font-medium text-slate-600">{HISTORY_PAYLOAD_LABELS[k] ?? k}:</dt>
                         <dd className="min-w-0 truncate text-slate-800">
-                          {formatHistoryPayloadValue(v)}
+                          {formatHistoryEntry(k, v)}
                         </dd>
                       </div>
                     ))}
