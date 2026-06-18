@@ -21,6 +21,7 @@ import { DrawerAssets, type AssetCreateFormState } from '../components/drawers/D
 import { DrawerAssetsUpdate } from '../components/drawers/DrawerAssetsUpdate'
 import { DrawerAssignments } from '../components/drawers/DrawerAssignments'
 import { DrawerScreenLoan } from '../components/drawers/DrawerScreenLoan'
+import { ReportIncidentDrawer } from '../components/drawers/ReportIncidentDrawer'
 import { ConfirmModal, Modal } from '../components/Modal'
 import { Button, Card, Input, PageTitle, Select, Table } from '../components/Ui'
 
@@ -295,6 +296,20 @@ function ScreenLoanIcon({ className }: { className?: string }) {
   )
 }
 
+function IncidentIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+      />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4M12 17h.01" />
+    </svg>
+  )
+}
+
 function DotsVerticalIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -473,6 +488,7 @@ type AssetActionsMenuProps = {
   onEdit: (asset: Asset) => void
   onAssign: (assetId: number) => void
   onLoan: (assetId: number) => void
+  onReport: (assetId: number) => void
   onPrint: (inventoryNumber: string) => void
   onDelete: (assetId: number) => void
 }
@@ -486,6 +502,7 @@ function AssetActionsMenu({
   onEdit,
   onAssign,
   onLoan,
+  onReport,
   onPrint,
   onDelete,
 }: AssetActionsMenuProps) {
@@ -496,6 +513,15 @@ function AssetActionsMenu({
 
   const assignDisabled = asset.status !== 'EN_STOCK_NON_AFFECTE' || loading
   const loanDisabled = asset.status !== 'EN_STOCK_NON_AFFECTE' || isLoanActive || loading || loanLoading
+  const reportDisabled =
+    asset.status === 'EN_PANNE' || asset.status === 'EN_REPARATION' || loading
+
+  const reportTitle =
+    asset.status === 'EN_PANNE'
+      ? 'Ce matériel est déjà en panne'
+      : asset.status === 'EN_REPARATION'
+        ? 'Ce matériel est déjà en réparation'
+        : 'Signaler une panne pour ce matériel'
 
   const assignTitle =
     asset.status === 'EN_STOCK_NON_AFFECTE'
@@ -661,6 +687,18 @@ function AssetActionsMenu({
 
               <button
                 type="button"
+                className={`${itemClass} ${reportDisabled ? disabledClass : enabledClass}`}
+                title={reportTitle}
+                role="menuitem"
+                disabled={reportDisabled}
+                onClick={() => !reportDisabled && runAction(() => onReport(asset.id))}
+              >
+                <IncidentIcon className="h-3.5 w-3.5" />
+                Signaler une panne
+              </button>
+
+              <button
+                type="button"
                 className={`${itemClass} ${loading ? disabledClass : enabledClass}`}
                 title="Imprimer la fiche du materiel"
                 role="menuitem"
@@ -712,6 +750,8 @@ export function AssetsPage() {
   const [activeScreenLoans, setActiveScreenLoans] = useState<ScreenLoan[]>([])
   const [screenLoanDrawerOpen, setScreenLoanDrawerOpen] = useState(false)
   const [screenLoanAssetId, setScreenLoanAssetId] = useState<number | ''>('')
+  const [incidentDrawerOpen, setIncidentDrawerOpen] = useState(false)
+  const [incidentAssetId, setIncidentAssetId] = useState<number | ''>('')
 
   const [form, setForm] = useState<AssetCreateFormState>(() => ({
     inventoryNumber: nextSequentialInventoryNumber('PC', []),
@@ -1028,6 +1068,16 @@ export function AssetsPage() {
     setScreenLoanDrawerOpen(true)
   }
 
+  function openIncidentDrawerForAsset(assetId: number) {
+    setIncidentAssetId(assetId)
+    setIncidentDrawerOpen(true)
+  }
+
+  async function handleIncidentCreated() {
+    await loadAllForSeq()
+    load()
+  }
+
   async function handleScreenLoanSuccess() {
     await Promise.all([loadAllForSeq(), loadActiveScreenLoans()])
     load()
@@ -1248,6 +1298,17 @@ export function AssetsPage() {
         initialAssetId={screenLoanAssetId}
       />
 
+      <ReportIncidentDrawer
+        isOpen={incidentDrawerOpen}
+        onClose={() => {
+          setIncidentDrawerOpen(false)
+          setIncidentAssetId('')
+        }}
+        assets={allAssets}
+        onCreated={handleIncidentCreated}
+        initialAssetId={incidentAssetId}
+      />
+
       <Card title="Liste du matériel">
         <div className="mb-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Input
@@ -1362,6 +1423,7 @@ export function AssetsPage() {
                   onEdit={openEdit}
                   onAssign={openAssignmentDrawerForAsset}
                   onLoan={openScreenLoanDrawerForAsset}
+                  onReport={openIncidentDrawerForAsset}
                   onPrint={handlePrintAsset}
                   onDelete={setAssetToDelete}
                 />

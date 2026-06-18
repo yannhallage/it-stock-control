@@ -11,11 +11,12 @@ type ReportIncidentDrawerProps = {
   onClose: () => void
   assets: Asset[]
   onCreated: () => void
+  initialAssetId?: number | ''
 }
 
 const ANIMATION_MS = 220
 
-export function ReportIncidentDrawer({ isOpen, onClose, assets, onCreated }: ReportIncidentDrawerProps) {
+export function ReportIncidentDrawer({ isOpen, onClose, assets, onCreated, initialAssetId }: ReportIncidentDrawerProps) {
   const [mounted, setMounted] = useState(isOpen)
   const [visible, setVisible] = useState(isOpen)
   const [assetId, setAssetId] = useState<number | ''>('')
@@ -44,13 +45,13 @@ export function ReportIncidentDrawer({ isOpen, onClose, assets, onCreated }: Rep
   useEffect(() => {
     if (!isOpen) return
     const id = window.setTimeout(() => {
-      setAssetId('')
+      setAssetId(initialAssetId ?? '')
       setDepartment('')
       setReportedAt(new Date().toISOString().slice(0, 10))
       setDescription('')
     }, 0)
     return () => window.clearTimeout(id)
-  }, [isOpen])
+  }, [isOpen, initialAssetId])
 
   useEffect(() => {
     if (!mounted) return

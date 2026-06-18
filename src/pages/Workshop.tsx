@@ -77,6 +77,7 @@ export function WorkshopPage() {
         repairOutcomeLabel(r.outcome),
         r.status,
         r.incident?.department ?? '',
+        r.incident?.description ?? '',
         `#${r.incidentId}`,
         asset?.inventoryNumber ?? '',
         asset?.brand ?? '',
@@ -84,6 +85,8 @@ export function WorkshopPage() {
         asset?.type ?? '',
         formatDate(entryDate) || '',
         formatDate(exitDate) || '',
+        entryDate ?? '',
+        exitDate ?? '',
       ].join(' ')
       return normalizeText(searchable).includes(query)
     })
