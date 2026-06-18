@@ -145,7 +145,7 @@ export function ScreenLoansPage() {
   const [loans, setLoans] = useState<ScreenLoan[]>([])
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'' | ScreenLoanStatus>('Tous')
+  const [statusFilter, setStatusFilter] = useState<'' | ScreenLoanStatus>('')
   // const [statusFilter, setStatusFilter] = useState<'' | ScreenLoanStatus>('NOT_RETURNED')
   const [dateFilterField, setDateFilterField] = useState<LoanDateFilterField>('loanDate')
   const [dateRange, setDateRange] = useState<CalendarValue>(null)
