@@ -4,6 +4,7 @@ import { Layout } from './components/Layout'
 import { AuthPage } from './pages/Auth'
 import { DashboardPage } from './pages/Dashboard'
 import { AssetsPage } from './pages/Assets'
+import { InventoryPage } from './pages/Inventory'
 import { AssignmentsPage } from './pages/Assignments'
 import { IncidentsPage } from './pages/Incidents'
 import { WorkshopPage } from './pages/Workshop'
@@ -40,6 +41,7 @@ export default function App() {
               <Route path="/" element={<DashboardPage />} />
               <Route path="/assets" element={<AssetsPage />} />
               <Route path="/assets/:id" element={<AssetDetailsPage />} />
+              <Route path="/inventaire" element={<InventoryPage />} />
               <Route path="/affectations" element={<AssignmentsPage />} />
               <Route path="/pannes" element={<IncidentsPage />} />
               <Route path="/atelier" element={<WorkshopPage />} />

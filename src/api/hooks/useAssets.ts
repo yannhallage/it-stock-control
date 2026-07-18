@@ -1,11 +1,14 @@
 import { useCallback, useState } from 'react'
 import { errorMessageFromUnknown } from '../../lib/errors'
 import type { Asset, AssetDetailsApi } from '../../types'
+import type { InventorySummary } from '../../types'
 import {
   createAssetService,
   deleteAssetService,
   getAssetByIdService,
+  getInventorySummaryService,
   listAssetsService,
+  markPhysicalInventoryService,
   updateAssetService,
   type AssetCreatePayload,
   type AssetUpdatePayload,
@@ -14,6 +17,8 @@ import {
 
 type UseAssetsResult = {
   fetchAssets: (params?: ListAssetsParams) => Promise<Asset[]>
+  fetchInventorySummary: (params?: ListAssetsParams) => Promise<InventorySummary>
+  markPhysicalInventory: (id: number, note?: string | null) => Promise<Asset>
   getAssetById: (id: number) => Promise<AssetDetailsApi>
   createAsset: (payload: AssetCreatePayload) => Promise<Asset>
   updateAsset: (id: number, payload: AssetUpdatePayload) => Promise<Asset>
@@ -34,6 +39,34 @@ export function useAssets(): UseAssetsResult {
       return res
     } catch (e: unknown) {
       const message = errorMessageFromUnknown(e, 'Erreur lors du chargement des matériels.')
+      setError(String(message))
+      throw e
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const fetchInventorySummary = useCallback(async (params?: ListAssetsParams) => {
+    setLoading(true)
+    setError(null)
+    try {
+      return await getInventorySummaryService(params ?? {})
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, 'Erreur lors du chargement de la synthèse inventaire.')
+      setError(String(message))
+      throw e
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const markPhysicalInventory = useCallback(async (id: number, note?: string | null) => {
+    setLoading(true)
+    setError(null)
+    try {
+      return await markPhysicalInventoryService(id, note)
+    } catch (e: unknown) {
+      const message = errorMessageFromUnknown(e, "Erreur lors du marquage d'inventaire physique.")
       setError(String(message))
       throw e
     } finally {
@@ -97,6 +130,16 @@ export function useAssets(): UseAssetsResult {
     }
   }, [])
 
-  return { fetchAssets, getAssetById: getById, createAsset: create, updateAsset: update, deleteAsset: remove, loading, error }
+  return {
+    fetchAssets,
+    fetchInventorySummary,
+    markPhysicalInventory,
+    getAssetById: getById,
+    createAsset: create,
+    updateAsset: update,
+    deleteAsset: remove,
+    loading,
+    error,
+  }
 }
 

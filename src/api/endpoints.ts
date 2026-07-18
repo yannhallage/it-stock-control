@@ -12,6 +12,8 @@ export const ENDPOINTS = {
   },
   assets: {
     base: '/api/assets',
+    inventorySummary: '/api/assets/inventory-summary',
+    physicalInventory: (id: number) => `/api/assets/${id}/physical-inventory`,
   },
   suppliers: {
     base: '/api/suppliers',
@@ -54,6 +56,8 @@ export const ENDPOINTS = {
   },
   impression: {
     assets: '/api/impression/printAssets',
+    inventory: '/api/impression/printInventory',
+    signaletic: '/api/impression/printSignaleticSheets',
     asset: '/api/impression/printAsset',
     assignments: '/api/impression/printAssigment',
     suppliers: '/api/impression/printSuppliers',

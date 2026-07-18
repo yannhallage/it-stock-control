@@ -789,6 +789,7 @@ export function AssetsPage() {
   const [q, setQ] = useState('')
   const [materialTypeId, setMaterialTypeId] = useState<number | ''>('')
   const [status, setStatus] = useState<AssetStatus | ''>('')
+  const [filterDepartmentId, setFilterDepartmentId] = useState<number | ''>('')
   const [dateFilterOpen, setDateFilterOpen] = useState(false)
   const [entryDateRange, setEntryDateRange] = useState<CalendarFilterValue>(null)
 
@@ -887,6 +888,7 @@ export function AssetsPage() {
     setError(null)
     fetchAssets({
       materialTypeId: materialTypeId === '' ? undefined : materialTypeId,
+      departmentId: filterDepartmentId === '' ? undefined : filterDepartmentId,
       status,
     })
       .then(setItems)
@@ -926,6 +928,9 @@ export function AssetsPage() {
       const msg = String(e?.message ?? e)
       toast.error(msg || 'Erreur lors du chargement des données de référence.')
     })
+    fetchDepartments()
+      .then((depts) => setDepartments(depts ?? []))
+      .catch(() => undefined)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -1406,7 +1411,7 @@ export function AssetsPage() {
       />
 
       <Card title="Liste du matériel">
-        <div className="mb-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mb-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <Input
             label="Recherche"
             placeholder="Inventaire, n° série, type, marque, modèle, fournisseur…"
@@ -1422,6 +1427,18 @@ export function AssetsPage() {
             {materialTypes.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
+              </option>
+            ))}
+          </Select>
+          <Select
+            label="Direction"
+            value={filterDepartmentId === '' ? '' : String(filterDepartmentId)}
+            onChange={(e) => setFilterDepartmentId(e.target.value ? Number(e.target.value) : '')}
+          >
+            <option value="">Toutes</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
               </option>
             ))}
           </Select>
@@ -1463,6 +1480,7 @@ export function AssetsPage() {
               onClick={() => {
                 setQ('')
                 setMaterialTypeId('')
+                setFilterDepartmentId('')
                 setStatus('')
                 setEntryDateRange(null)
                 setTimeout(load, 0)
@@ -1482,6 +1500,8 @@ export function AssetsPage() {
             'Type',
             'Marque',
             'Modèle',
+            'Utilisateur',
+            'Direction',
             'Entrée',
             'Garantie',
             'Fournisseur',
@@ -1498,6 +1518,12 @@ export function AssetsPage() {
               <td className="px-4 py-3 text-gray-600">{getTypeName(a)}</td>
               <td className="px-4 py-3 text-gray-600">{getBrandName(a)}</td>
               <td className="px-4 py-3 text-gray-600">{a.model}</td>
+              <td className="px-4 py-3 text-gray-600 text-[13px]">
+                {a.currentAssignment ? formatUserName(a.currentAssignment.user) : '—'}
+              </td>
+              <td className="px-4 py-3 text-gray-600 text-[13px]">
+                {a.currentAssignment ? getDepartmentName(a.currentAssignment) : '—'}
+              </td>
               <td className="px-4 py-3 text-gray-600">{formatDate(a.entryDate)}</td>
               <td className="px-4 py-3 text-gray-600 text-[13px]">{warrantyLabel(a)}</td>
               <td className="px-4 py-3 text-gray-600">{getSupplierName(a)}</td>

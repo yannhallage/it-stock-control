@@ -43,6 +43,7 @@ export function AssignmentsPage() {
   const [customUserId, setCustomUserId] = useState('')
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
   const [statusFilter, setStatusFilter] = useState<'' | Asset['status']>('')
+  const [departmentFilter, setDepartmentFilter] = useState<number | ''>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [incidentTarget, setIncidentTarget] = useState<IncidentDrawerTarget | null>(null)
   const [assignmentDrawerOpen, setAssignmentDrawerOpen] = useState(false)
@@ -90,6 +91,15 @@ export function AssignmentsPage() {
 
   useEffect(() => {
     load()
+    Promise.all([fetchDepartments(), listKnownUsersFromAssignmentsService()])
+      .then(([depts, users]) => {
+        setDepartments(depts ?? [])
+        setKnownUsers(users ?? [])
+      })
+      .catch((e) => {
+        const msg = String(e?.message ?? e)
+        toast.error(msg || 'Erreur lors du chargement des données d\'affectation.')
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -204,7 +214,7 @@ export function AssignmentsPage() {
 
       <Card title="Affectations actives">
         <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-12 md:items-end">
-          <div className="md:col-span-4 lg:col-span-3">
+          <div className="md:col-span-3 lg:col-span-2">
             <Select
               label="Filtrer par état"
               value={statusFilter}
@@ -220,7 +230,23 @@ export function AssignmentsPage() {
               <option value="HORS_SERVICE">HORS_SERVICE</option>
             </Select>
           </div>
-          <div className="md:col-span-8 lg:col-span-7">
+          <div className="md:col-span-3 lg:col-span-3">
+            <Select
+              label="Direction"
+              value={departmentFilter === '' ? '' : String(departmentFilter)}
+              onChange={(e) =>
+                setDepartmentFilter(e.target.value ? Number(e.target.value) : '')
+              }
+            >
+              <option value="">Toutes</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="md:col-span-4 lg:col-span-5">
             <Input
               label="Rechercher"
               placeholder="Utilisateur, direction, inventaire, matériel..."
@@ -228,7 +254,7 @@ export function AssignmentsPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="md:col-span-12 lg:col-span-2">
+          <div className="md:col-span-2 lg:col-span-2">
             <Button
               type="button"
               variant="default"
@@ -248,6 +274,10 @@ export function AssignmentsPage() {
               if (!statusFilter) return true
               const asset = items.find((i) => i.id === a.assetId)
               return asset?.status === statusFilter
+            })
+            .filter((a) => {
+              if (departmentFilter === '') return true
+              return a.departmentId === departmentFilter
             })
             .filter((a) => {
               const query = searchTerm.trim().toLowerCase()

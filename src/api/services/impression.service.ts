@@ -1,6 +1,6 @@
 import { ENDPOINTS, buildUrl } from '../endpoints'
 import { getSession, handleAuthenticationFailure } from '../../lib/auth'
-import type { AssetStatus } from '../../types'
+import type { AssetStatus, InventoryColumnKey } from '../../types'
 
 export type AssetsPdfFilters = {
   search?: string
@@ -8,6 +8,21 @@ export type AssetsPdfFilters = {
   status?: AssetStatus | ''
   entryDateFrom?: string
   entryDateTo?: string
+}
+
+export type InventoryPdfFilters = {
+  search?: string
+  materialTypeId?: number
+  materialTypeIds?: number[]
+  status?: AssetStatus | ''
+  departmentId?: number
+  userId?: string
+  entryDateFrom?: string
+  entryDateTo?: string
+  warrantyExpired?: boolean
+  minAgeYears?: number
+  physicalInventoryPending?: boolean
+  columns?: InventoryColumnKey[]
 }
 
 async function downloadPdf(path: string): Promise<Blob> {
@@ -34,6 +49,29 @@ async function downloadPdf(path: string): Promise<Blob> {
   return res.blob()
 }
 
+function buildInventoryQuery(filters: InventoryPdfFilters = {}): string {
+  const searchParams = new URLSearchParams()
+  if (filters.search?.trim()) searchParams.set('search', filters.search.trim())
+  if (filters.materialTypeId != null) searchParams.set('materialTypeId', String(filters.materialTypeId))
+  if (filters.materialTypeIds?.length) {
+    for (const id of filters.materialTypeIds) {
+      searchParams.append('materialTypeIds', String(id))
+    }
+  }
+  if (filters.status) searchParams.set('status', filters.status)
+  if (filters.departmentId != null) searchParams.set('departmentId', String(filters.departmentId))
+  if (filters.userId) searchParams.set('userId', filters.userId)
+  if (filters.entryDateFrom) searchParams.set('entryDateFrom', filters.entryDateFrom)
+  if (filters.entryDateTo) searchParams.set('entryDateTo', filters.entryDateTo)
+  if (filters.warrantyExpired) searchParams.set('warrantyExpired', 'true')
+  if (filters.minAgeYears != null) searchParams.set('minAgeYears', String(filters.minAgeYears))
+  if (filters.physicalInventoryPending) searchParams.set('physicalInventoryPending', 'true')
+  if (filters.columns?.length) {
+    for (const col of filters.columns) searchParams.append('columns', col)
+  }
+  return searchParams.toString()
+}
+
 export function downloadAssetsPdfService(filters: AssetsPdfFilters = {}): Promise<Blob> {
   const searchParams = new URLSearchParams()
 
@@ -45,6 +83,20 @@ export function downloadAssetsPdfService(filters: AssetsPdfFilters = {}): Promis
 
   const query = searchParams.toString()
   return downloadPdf(query ? `${ENDPOINTS.impression.assets}?${query}` : ENDPOINTS.impression.assets)
+}
+
+export function downloadInventoryPdfService(filters: InventoryPdfFilters = {}): Promise<Blob> {
+  const query = buildInventoryQuery(filters)
+  return downloadPdf(
+    query ? `${ENDPOINTS.impression.inventory}?${query}` : ENDPOINTS.impression.inventory,
+  )
+}
+
+export function downloadSignaleticPdfService(filters: InventoryPdfFilters = {}): Promise<Blob> {
+  const query = buildInventoryQuery(filters)
+  return downloadPdf(
+    query ? `${ENDPOINTS.impression.signaletic}?${query}` : ENDPOINTS.impression.signaletic,
+  )
 }
 
 export function downloadAssetPdfByInventoryNumberService(inventoryNumber: string): Promise<Blob> {

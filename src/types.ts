@@ -34,14 +34,45 @@ export type Asset = {
   warrantyStartDate?: string | null
   warrantyEndDate?: string | null
   status: AssetStatus
+  lastPhysicalInventoryAt?: string | null
+  physicalInventoryNote?: string | null
   category?: Ref
   materialType?: Ref
   brand?: Ref
   supplier?: Ref | null
   location?: (Ref & { building?: string | null; floor?: string | null; room?: string | null }) | null
+  currentAssignment?: Assignment | null
   createdAt: string
   updatedAt: string
 }
+
+export type InventorySummary = {
+  total: number
+  byStatus: Partial<Record<AssetStatus, number>>
+  assigned: number
+  inStock: number
+  inRepair: number
+  broken: number
+  outOfService: number
+  inLoan: number
+  inService: number
+  warrantyExpired: number
+  toRenew: number
+}
+
+export type InventoryColumnKey =
+  | 'inventoryNumber'
+  | 'type'
+  | 'brandModel'
+  | 'firstName'
+  | 'lastName'
+  | 'direction'
+  | 'status'
+  | 'entryDate'
+  | 'warranty'
+  | 'supplier'
+  | 'serialNumber'
+  | 'location'
 
 export type Assignment = {
   id: number
@@ -216,6 +247,9 @@ export type DashboardApiResponse = {
     enStock: number
     affectes: number
     reparationsEnCours: number
+    enPanne: number
+    garantiesExpirees: number
+    aRenouveler: number
   }
   repartition_par_etat: Array<{ etat: string; libelle: string; count: number }>
   top_directions_pannes: Array<{ direction: string; count: number }>
