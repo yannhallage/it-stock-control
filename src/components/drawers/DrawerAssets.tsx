@@ -1,6 +1,9 @@
 import type { Dispatch, FormEvent, SetStateAction } from 'react'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import type { Brand } from '../../api/services/brands.service'
+import type { Category } from '../../api/services/categories.service'
+import type { Location } from '../../api/services/locations.service'
 import type { Supplier } from '../../api/services/suppliers.service'
 import type { MaterialType } from '../../api/services/material-types.service'
 import { Button, Input, Select } from '../Ui'
@@ -8,12 +11,14 @@ import { Button, Input, Select } from '../Ui'
 export type AssetCreateFormState = {
   inventoryNumber: string
   serialNumber: string
-  type: string
-  brand: string
+  categoryId: number | ''
+  materialTypeId: number | ''
+  brandId: number | ''
+  supplierId: number | ''
+  locationId: number | ''
   model: string
   entryDate: string
   warrantyMonths: string
-  supplier: string
 }
 
 type DrawerAssetsProps = {
@@ -21,11 +26,14 @@ type DrawerAssetsProps = {
   onClose: () => void
   form: AssetCreateFormState
   setForm: Dispatch<SetStateAction<AssetCreateFormState>>
+  categories: Category[]
   materialTypes: MaterialType[]
+  brands: Brand[]
   suppliers: Supplier[]
+  locations: Location[]
   loading: boolean
   onSubmit: (e: FormEvent) => void
-  nextInventoryForType: (materialType: string) => string
+  nextInventoryForMaterialTypeId: (materialTypeId: number) => string
 }
 
 const ANIMATION_MS = 220
@@ -35,11 +43,14 @@ export function DrawerAssets({
   onClose,
   form,
   setForm,
+  categories,
   materialTypes,
+  brands,
   suppliers,
+  locations,
   loading,
   onSubmit,
-  nextInventoryForType,
+  nextInventoryForMaterialTypeId,
 }: DrawerAssetsProps) {
   const [mounted, setMounted] = useState(isOpen)
   const [visible, setVisible] = useState(isOpen)
@@ -116,29 +127,59 @@ export function DrawerAssets({
                 className="bg-gray-50 font-mono"
               />
               <Select
-                label="Type (PC, Imprimante, etc.)"
-                value={form.type}
-                onChange={(e) => {
-                  const nextType = e.target.value
+                label="Catégorie"
+                value={form.categoryId}
+                onChange={(e) =>
                   setForm({
                     ...form,
-                    type: nextType,
-                    inventoryNumber: nextInventoryForType(nextType),
+                    categoryId: e.target.value ? Number(e.target.value) : '',
+                  })
+                }
+              >
+                <option value="">Sélectionner une catégorie</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                label="Type (PC, Imprimante, etc.)"
+                value={form.materialTypeId}
+                onChange={(e) => {
+                  const nextId = e.target.value ? Number(e.target.value) : ''
+                  setForm({
+                    ...form,
+                    materialTypeId: nextId,
+                    inventoryNumber:
+                      typeof nextId === 'number' ? nextInventoryForMaterialTypeId(nextId) : form.inventoryNumber,
                   })
                 }}
               >
                 <option value="">Sélectionner un type</option>
                 {materialTypes.map((t) => (
-                  <option key={t.id} value={t.name}>
+                  <option key={t.id} value={t.id}>
                     {t.name}
                   </option>
                 ))}
               </Select>
-              <Input
+              <Select
                 label="Marque"
-                value={form.brand}
-                onChange={(e) => setForm({ ...form, brand: e.target.value })}
-              />
+                value={form.brandId}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    brandId: e.target.value ? Number(e.target.value) : '',
+                  })
+                }
+              >
+                <option value="">Sélectionner une marque</option>
+                {brands.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </Select>
               <Input
                 label="Numéro de série du matériel"
                 value={form.serialNumber}
@@ -164,13 +205,35 @@ export function DrawerAssets({
               />
               <Select
                 label="Fournisseur"
-                value={form.supplier}
-                onChange={(e) => setForm({ ...form, supplier: e.target.value })}
+                value={form.supplierId}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    supplierId: e.target.value ? Number(e.target.value) : '',
+                  })
+                }
               >
                 <option value="">Sélectionner un fournisseur</option>
                 {suppliers.map((s) => (
-                  <option key={s.id} value={s.name}>
+                  <option key={s.id} value={s.id}>
                     {s.name}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                label="Emplacement (optionnel)"
+                value={form.locationId}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    locationId: e.target.value ? Number(e.target.value) : '',
+                  })
+                }
+              >
+                <option value="">Aucun emplacement</option>
+                {locations.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
                   </option>
                 ))}
               </Select>

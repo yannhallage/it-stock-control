@@ -3,9 +3,18 @@ import { Link, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { ClipLoader } from 'react-spinners'
 import { getAssetByIdService } from '../api/services/assets.service'
+import {
+  formatBrandModel,
+  formatUserName,
+  getBrandName,
+  getDepartmentName,
+  getSupplierName,
+  getTypeName,
+} from '../lib/asset-labels'
 import { assetStatusLabel, formatDate } from '../lib/format'
-import type { Assignment, HistoryEvent } from '../types'
+import type { Assignment, AssetStatus, HistoryEvent } from '../types'
 import type { AssetDetailsApi, RepairFromApi } from '../types'
+import { AssetAttachmentsPanel } from '../components/AssetAttachmentsPanel'
 import { StatusBadge } from '../components/Badge'
 import { Button, Card, PageTitle } from '../components/Ui'
 
@@ -93,14 +102,72 @@ const HISTORY_TYPE_LABELS: Record<HistoryEvent['type'], string> = {
   INCIDENT_REPORTED: 'Incident signalé',
   REPAIR_STARTED: 'Réparation démarrée',
   REPAIR_FINISHED: 'Réparation terminée',
+  MAINTENANCE_CREATED: 'Maintenance planifiée',
+  LOCATION_CHANGED: 'Changement d\'emplacement',
+}
+
+const HISTORY_PAYLOAD_LABELS: Record<string, string> = {
+  inventoryNumber: 'N° d\'inventaire',
+  type: 'Type',
+  brand: 'Marque',
+  model: 'Modèle',
+  supplier: 'Fournisseur',
+  status: 'État',
+  entryDate: 'Date d\'entrée',
+  warrantyStartDate: 'Début de garantie',
+  warrantyEndDate: 'Fin de garantie',
+  from: 'Ancien état',
+  to: 'Nouvel état',
+  screenLoanId: 'N° de prêt',
+  borrowerFirstName: 'Prénom',
+  borrowerLastName: 'Nom',
+  // borrowerFirstName: 'Prénom de l\'emprunteur',
+  // borrowerLastName: 'Nom de l\'emprunteur',
+  returnedAt: 'Date de retour',
+  assignmentId: 'N° d\'affectation',
+  department: 'Service',
+  departmentId: 'Service',
+  userId: 'Utilisateur',
+  user: 'Utilisateur',
+  startDate: 'Date de début',
+  endDate: 'Date de fin',
+  repairId: 'N° de réparation',
+  incidentId: 'N° d\'incident',
+  workshopEntryDate: 'Entrée à l\'atelier',
+  workshopExitDate: 'Sortie de l\'atelier',
+  technicianName: 'Technicien',
+  action: 'Action réalisée',
+  outcome: 'Résultat',
+  previousAssetStatus: 'État précédent',
+  description: 'Description',
+  reportedAt: 'Date de signalement',
+  reason: 'Motif',
+}
+
+const HISTORY_REASON_LABELS: Record<string, string> = {
+  incident_reported: 'Incident signalé',
+}
+
+const HISTORY_STATUS_KEYS = new Set([
+  'status',
+  'from',
+  'to',
+  'outcome',
+  'previousAssetStatus',
+])
+
+function formatHistoryEntry(key: string, value: unknown): string {
+  if (HISTORY_STATUS_KEYS.has(key) && typeof value === 'string') {
+    return assetStatusLabel(value as AssetStatus)
+  }
+  if (key === 'reason' && typeof value === 'string') {
+    return HISTORY_REASON_LABELS[value] ?? value
+  }
+  return formatHistoryPayloadValue(value)
 }
 
 function formatAssignmentUser(user: Assignment['user']): string {
-  if (typeof user === 'string') return user
-  if (user && typeof user === 'object' && Array.isArray((user as { names?: string[] }).names))
-    return ((user as { names: string[] }).names).join(', ')
-  if (user && typeof user === 'object' && 'name' in user) return String((user as { name: string }).name)
-  return ''
+  return formatUserName(user)
 }
 
 function formatHistoryPayloadValue(value: unknown): string {
@@ -175,9 +242,9 @@ function HistoryTimeline({ events }: { events: HistoryEvent[] }) {
                   <dl className="mt-2 grid grid-cols-1 gap-1 text-xs sm:grid-cols-2">
                     {Object.entries(h.payload).map(([k, v]) => (
                       <div key={k} className="flex gap-2">
-                        <dt className="shrink-0 font-medium text-slate-600">{k}:</dt>
+                        <dt className="shrink-0 font-medium text-slate-600">{HISTORY_PAYLOAD_LABELS[k] ?? k}:</dt>
                         <dd className="min-w-0 truncate text-slate-800">
-                          {formatHistoryPayloadValue(v)}
+                          {formatHistoryEntry(k, v)}
                         </dd>
                       </div>
                     ))}
@@ -309,7 +376,7 @@ export function AssetDetailsPage() {
               <span className="text-xs text-slate-600">{formatDate(i.reportedAt)}</span>
             </summary>
             <div className="mt-2 text-sm text-slate-700">
-              <b>{i.department}</b> - {i.description}
+              <b>{getDepartmentName(i)}</b> - {i.description}
             </div>
             <div className="mt-2 text-xs text-slate-600">Statut incident: {i.status}</div>
             <div className="mt-3">
@@ -345,10 +412,10 @@ export function AssetDetailsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
             <PageTitle>
-              {data.inventoryNumber} - {data.type}
+              {data.inventoryNumber} - {getTypeName(data)}
             </PageTitle>
             <div className="text-sm text-slate-600">
-              {data.brand} {data.model} - Entrée {formatDate(data.entryDate)} - Fournisseur {data.supplier}
+              {formatBrandModel(data)} - Entrée {formatDate(data.entryDate)} - Fournisseur {getSupplierName(data)}
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <StatusBadge status={data.status} />
@@ -356,7 +423,7 @@ export function AssetDetailsPage() {
                 État: {assetStatusLabel(data.currentStatus)}
               </span>
               <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
-                Affectation: {data.currentAssignment ? data.currentAssignment.department : 'Aucune'}
+                Affectation: {data.currentAssignment ? getDepartmentName(data.currentAssignment) : 'Aucune'}
               </span>
             </div>
           </div>
@@ -444,7 +511,7 @@ export function AssetDetailsPage() {
           <Card title="Affectation actuelle">
             {data.currentAssignment ? (
               <div className="text-sm text-slate-900">
-                <b>{data.currentAssignment.department}</b> - {formatAssignmentUser(data.currentAssignment.user)} (depuis{' '}
+                <b>{getDepartmentName(data.currentAssignment)}</b> - {formatAssignmentUser(data.currentAssignment.user)} (depuis{' '}
                 {formatDate(data.currentAssignment.startDate)})
               </div>
             ) : (
@@ -454,13 +521,15 @@ export function AssetDetailsPage() {
 
           <Card title="Informations administratives">
             <div className="space-y-1 text-sm text-slate-700">
-              <div><span className="font-medium text-slate-900">Type:</span> {data.type}</div>
-              <div><span className="font-medium text-slate-900">Marque:</span> {data.brand}</div>
+              <div><span className="font-medium text-slate-900">Type:</span> {getTypeName(data)}</div>
+              <div><span className="font-medium text-slate-900">Marque:</span> {getBrandName(data)}</div>
               <div><span className="font-medium text-slate-900">Modèle:</span> {data.model}</div>
               <div><span className="font-medium text-slate-900">Entrée:</span> {formatDate(data.entryDate)}</div>
-              <div><span className="font-medium text-slate-900">Fournisseur:</span> {data.supplier}</div>
+              <div><span className="font-medium text-slate-900">Fournisseur:</span> {getSupplierName(data)}</div>
             </div>
           </Card>
+
+          <AssetAttachmentsPanel assetId={data.id} />
         </div>
       </div>
     </div>

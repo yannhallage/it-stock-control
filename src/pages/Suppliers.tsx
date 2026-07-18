@@ -94,6 +94,8 @@ export function SuppliersPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [name, setName] = useState('')
   const [contact, setContact] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
 
@@ -106,8 +108,10 @@ export function SuppliersPage() {
     return suppliers.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
-        s.contact.toLowerCase().includes(q) ||
-        s.address.toLowerCase().includes(q),
+        (s.contact ?? '').toLowerCase().includes(q) ||
+        (s.email ?? '').toLowerCase().includes(q) ||
+        (s.phone ?? '').toLowerCase().includes(q) ||
+        (s.address ?? '').toLowerCase().includes(q),
     )
   }, [suppliers, search])
 
@@ -115,6 +119,8 @@ export function SuppliersPage() {
     setEditingId(null)
     setName('')
     setContact('')
+    setEmail('')
+    setPhone('')
     setAddress('')
     setModalOpen(true)
   }
@@ -122,8 +128,10 @@ export function SuppliersPage() {
   const openEdit = (s: Supplier) => {
     setEditingId(s.id)
     setName(s.name)
-    setContact(s.contact)
-    setAddress(s.address)
+    setContact(s.contact ?? '')
+    setEmail(s.email ?? '')
+    setPhone(s.phone ?? '')
+    setAddress(s.address ?? '')
     setModalOpen(true)
   }
 
@@ -156,6 +164,8 @@ export function SuppliersPage() {
         const updated = await updateSupplier(editingId, {
           name: trimmedName,
           contact: contact.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
           address: address.trim(),
         })
         setSuppliers((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
@@ -164,6 +174,8 @@ export function SuppliersPage() {
         const created = await createSupplier({
           name: trimmedName,
           contact: contact.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
           address: address.trim(),
         })
         setSuppliers((prev) => [...prev, created])
@@ -323,14 +335,16 @@ export function SuppliersPage() {
                       </button>
                     </div>
                   </div>
-                  {s.contact ? (
-                    <p className="text-sm text-gray-500">{s.contact}</p>
+                  {(s.email || s.phone || s.contact) ? (
+                    <p className="text-sm text-gray-500">
+                      {[s.email, s.phone, s.contact].filter(Boolean).join(' · ')}
+                    </p>
                   ) : null}
                   <p className="mt-1 text-xs text-gray-500">
                     Ajouté le {s.createdAt ? formatDate(s.createdAt) : 'Date inconnue'}
                   </p>
                   <p className="mt-2 text-sm font-medium text-[var(--color-primary)]">
-                    {s.contact ? '1 contact' : 'Aucun contact'}
+                    {s.email || s.phone || s.contact ? 'Contact renseigné' : 'Aucun contact'}
                   </p>
                 </div>
               </article>
@@ -354,12 +368,18 @@ export function SuppliersPage() {
           )}
         </>
       ) : (
-        <Table columns={['Nom', 'Adresse', 'Contact', "Date d'ajout", 'Actions']}>
+        <Table columns={['Nom', 'Adresse', 'Email', 'Téléphone', 'Contact', "Date d'ajout", 'Actions']}>
           {filteredSuppliers.map((s) => (
             <tr key={s.id} className="hover:bg-gray-50">
               <td className="px-4 py-3 font-medium text-gray-900">{s.name}</td>
               <td className="px-4 py-3 text-gray-600">
                 {s.address || <span className="text-gray-400">—</span>}
+              </td>
+              <td className="px-4 py-3 text-gray-600">
+                {s.email || <span className="text-gray-400">—</span>}
+              </td>
+              <td className="px-4 py-3 text-gray-600">
+                {s.phone || <span className="text-gray-400">—</span>}
               </td>
               <td className="px-4 py-3 text-gray-600">
                 {s.contact || <span className="text-gray-400">—</span>}
@@ -393,7 +413,7 @@ export function SuppliersPage() {
           ))}
           {filteredSuppliers.length === 0 && (
             <tr>
-              <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+              <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                 {suppliers.length === 0 && loading ? (
                   <span className="inline-flex w-full items-center justify-center" aria-label="Chargement">
                     <BeatLoader size={10} color="var(--color-primary)" />
@@ -433,7 +453,20 @@ export function SuppliersPage() {
                 label="Contact"
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
-                placeholder="Téléphone ou email"
+                placeholder="Personne de contact"
+              />
+              <Input
+                label="Email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="email@exemple.com"
+              />
+              <Input
+                label="Téléphone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+221 ..."
               />
               <Input
                 label="Adresse"

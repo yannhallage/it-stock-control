@@ -5,11 +5,19 @@ import { useAssets } from '../api/hooks/useAssets'
 import { useIncidents } from '../api/hooks/useIncidents'
 import { useWorkshop } from '../api/hooks/useWorkshop'
 import type { RepairWithRelations } from '../api/services/workshop.service'
+import { formatBrandModel, getBrandName, getDepartmentName, getTypeName } from '../lib/asset-labels'
 import { formatDate } from '../lib/format'
 import type { Asset, Incident } from '../types'
 import { StatusBadge } from '../components/Badge'
 import { DrawerStartRepair } from '../components/drawers/DrawerStartRepair'
-import { Button, Card, PageTitle, Table } from '../components/Ui'
+import { Button, Card, Input, PageTitle, Table } from '../components/Ui'
+
+function normalizeText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
 
 function getWorkshopEntryDate(repair: RepairWithRelations) {
   return repair.workshopEntryDate ?? repair.workshopIn
@@ -34,6 +42,7 @@ export function WorkshopPage() {
   const [assets, setAssets] = useState<Asset[]>([])
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [repairs, setRepairs] = useState<RepairWithRelations[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const [startRepairDrawerOpen, setStartRepairDrawerOpen] = useState(false)
@@ -54,6 +63,35 @@ export function WorkshopPage() {
     () => incidents.filter((i) => i.status === 'OUVERT'),
     [incidents],
   )
+
+  const filteredRepairs = useMemo(() => {
+    const query = normalizeText(searchTerm.trim())
+    if (!query) return repairs
+
+    return repairs.filter((r) => {
+      const asset = r.incident?.asset ?? (r.incident ? assetsById.get(r.incident.assetId) : undefined)
+      const entryDate = getWorkshopEntryDate(r)
+      const exitDate = getWorkshopExitDate(r)
+      const searchable = [
+        r.technicianName ?? '',
+        r.action ?? '',
+        repairOutcomeLabel(r.outcome),
+        r.status,
+        r.incident ? getDepartmentName(r.incident) : '',
+        r.incident?.description ?? '',
+        `#${r.incidentId}`,
+        asset?.inventoryNumber ?? '',
+        getBrandName(asset),
+        asset?.model ?? '',
+        getTypeName(asset),
+        formatDate(entryDate) || '',
+        formatDate(exitDate) || '',
+        entryDate ?? '',
+        exitDate ?? '',
+      ].join(' ')
+      return normalizeText(searchable).includes(query)
+    })
+  }, [assetsById, repairs, searchTerm])
 
   const load = useCallback(() => {
     setError(null)
@@ -133,8 +171,18 @@ export function WorkshopPage() {
       />
 
       <Card title="Réparations atelier">
+        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-12 md:items-end">
+          <div className="md:col-span-6 lg:col-span-4">
+            <Input
+              label="Rechercher"
+              placeholder="Technicien, matériel, incident, action, date..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
         <Table columns={['Matériel', 'État', 'Incident', 'Entrée atelier', 'Sortie atelier', 'Technicien', 'Action', 'Clôture']}>
-          {repairs.map((r) => {
+          {filteredRepairs.map((r) => {
             const incident = r.incident
             const asset = r.incident?.asset ?? (r.incident ? assetsById.get(r.incident.assetId) : undefined)
             const workshopExitDate = getWorkshopExitDate(r)
@@ -146,13 +194,13 @@ export function WorkshopPage() {
             return (
               <tr key={r.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-[13px]">
-                  {asset ? `${asset.inventoryNumber} — ${asset.brand} ${asset.model}` : `#${r.incidentId}`}
+                  {asset ? `${asset.inventoryNumber} — ${formatBrandModel(asset)}` : `#${r.incidentId}`}
                 </td>
                 <td className="px-4 py-3 text-[13px]">
                   {asset ? <StatusBadge status={asset.status} /> : '—'}
                 </td>
                 <td className="px-4 py-3 text-gray-600 text-[13px]">
-                  #{r.incidentId} — {incident?.department ?? '—'}
+                  #{r.incidentId} — {incident ? getDepartmentName(incident) : '—'}
                 </td>
                 <td className="px-4 py-3 text-gray-600 text-[13px]">
                   {formatDate(getWorkshopEntryDate(r)) || '—'}
@@ -219,13 +267,15 @@ export function WorkshopPage() {
               </tr>
             )
           })}
-          {!repairs.length ? (
+          {!filteredRepairs.length ? (
             <tr>
               <td className="px-4 py-8 text-center text-gray-500" colSpan={8}>
                 {loading ? (
                   <span className="inline-flex w-full items-center justify-center" aria-label="Chargement">
                     <BeatLoader size={10} color="var(--color-primary)" />
                   </span>
+                ) : repairs.length ? (
+                  'Aucune réparation ne correspond à la recherche.'
                 ) : (
                   'Aucune réparation en cours.'
                 )}

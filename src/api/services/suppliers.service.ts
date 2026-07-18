@@ -4,8 +4,10 @@ import { del, get, post, put } from '../http'
 export type Supplier = {
   id: number
   name: string
-  contact: string
-  address: string
+  contact?: string | null
+  email?: string | null
+  phone?: string | null
+  address?: string | null
   createdAt?: string
 }
 
@@ -16,12 +18,16 @@ export type ListSuppliersParams = {
 export type SupplierCreatePayload = {
   name: string
   contact?: string
+  email?: string
+  phone?: string
   address?: string
 }
 
 export type SupplierUpdatePayload = {
   name?: string
   contact?: string
+  email?: string
+  phone?: string
   address?: string
 }
 
@@ -46,4 +52,3 @@ export function updateSupplierService(id: number, payload: SupplierUpdatePayload
 export function deleteSupplierService(id: number): Promise<void> {
   return del<void>(`${ENDPOINTS.suppliers.base}/${id}`)
 }
-

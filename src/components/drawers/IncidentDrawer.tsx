@@ -12,7 +12,8 @@ type IncidentDrawerProps = {
   assetId: number | null
   inventoryNumber: string
   materialName: string
-  department: string
+  departmentId: number | null
+  departmentName: string
   userDisplay: string
 }
 
@@ -25,7 +26,8 @@ export function IncidentDrawer({
   assetId,
   inventoryNumber,
   materialName,
-  department,
+  departmentId,
+  departmentName,
   userDisplay,
 }: IncidentDrawerProps) {
   const [mounted, setMounted] = useState(isOpen)
@@ -84,13 +86,17 @@ export function IncidentDrawer({
       toast.warning('Matériel introuvable pour cette affectation.')
       return
     }
+    if (!departmentId) {
+      toast.warning('Direction introuvable pour cette affectation.')
+      return
+    }
     if (!description.trim()) {
       toast.warning('Veuillez renseigner la description de la panne.')
       return
     }
     try {
       await createIncidentForAsset(assetId, {
-        department,
+        departmentId,
         reportedAt,
         description: description.trim(),
       })
@@ -133,7 +139,7 @@ export function IncidentDrawer({
           <form className="flex h-full flex-col gap-4 overflow-y-auto p-5" onSubmit={handleSubmit}>
             <Input label="N° inventaire" value={inventoryNumber} readOnly />
             <Input label="Matériel" value={materialName} readOnly />
-            <Input label="Direction" value={department} readOnly />
+            <Input label="Direction" value={departmentName} readOnly />
             <Input label="Utilisateur(s)" value={userDisplay} readOnly />
             <Input
               label="Date de signalement"

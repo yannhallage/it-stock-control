@@ -6,65 +6,136 @@ export type AssetStatus =
   | 'EN_REPARATION'
   | 'EN_SERVICE'
   | 'HORS_SERVICE'
-// chchhchch
+
+export type Ref = {
+  id: number
+  name: string
+}
+
+export type AssignmentUser = {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+}
+
 export type Asset = {
   id: number
   inventoryNumber: string
-  serialNumber?: string
-  serial_number?: string | null
-  type: string
-  brand: string
+  serialNumber?: string | null
   model: string
-  entryDate: string // ISO date
-  warrantyMonths?: number
+  categoryId: number
+  materialTypeId: number
+  brandId: number
+  supplierId?: number | null
+  locationId?: number | null
+  entryDate: string
+  purchasePrice?: number | string | null
   warrantyStartDate?: string | null
   warrantyEndDate?: string | null
-  supplier: string
   status: AssetStatus
+  lastPhysicalInventoryAt?: string | null
+  physicalInventoryNote?: string | null
+  category?: Ref
+  materialType?: Ref
+  brand?: Ref
+  supplier?: Ref | null
+  location?: (Ref & { building?: string | null; floor?: string | null; room?: string | null }) | null
+  currentAssignment?: Assignment | null
   createdAt: string
   updatedAt: string
 }
 
+export type InventorySummary = {
+  total: number
+  byStatus: Partial<Record<AssetStatus, number>>
+  assigned: number
+  inStock: number
+  inRepair: number
+  broken: number
+  outOfService: number
+  inLoan: number
+  inService: number
+  warrantyExpired: number
+  toRenew: number
+}
+
+export type InventoryColumnKey =
+  | 'inventoryNumber'
+  | 'type'
+  | 'brandModel'
+  | 'firstName'
+  | 'lastName'
+  | 'direction'
+  | 'status'
+  | 'entryDate'
+  | 'warranty'
+  | 'supplier'
+  | 'serialNumber'
+  | 'location'
+
 export type Assignment = {
   id: number
   assetId: number
-  department: string
-  /** API: string (legacy) ou { name: string } ou { names: string[] } */
-  user: string | { name: string } | { names: string[] }
+  userId: string
+  departmentId: number
+  user?: AssignmentUser
+  department?: Ref
   startDate: string
   endDate: string | null
+  note?: string | null
   createdAt: string
+  asset?: Pick<Asset, 'id' | 'inventoryNumber' | 'serialNumber' | 'model' | 'status'> & {
+    brand?: Ref
+    materialType?: Ref
+    category?: Ref
+  }
 }
 
 export type Incident = {
   id: number
   assetId: number
+  departmentId: number
+  department?: Ref
   description: string
   reportedAt: string
-  department: string
   status: 'OUVERT' | 'CLOS'
   createdAt: string
   updatedAt: string
+  asset?: Pick<Asset, 'id' | 'inventoryNumber' | 'serialNumber' | 'model' | 'status'> & {
+    brand?: Ref
+    materialType?: Ref
+    category?: Ref
+  }
 }
 
 export type Repair = {
   id: number
-  incidentId: number
+  assetId?: number
+  incidentId: number | null
   action: string
   cost: number
   workshopIn: string
   workshopOut: string | null
+  workshopEntryDate?: string
   workshopExitDate?: string | null
+  technicianName?: string | null
   status: 'EN_COURS' | 'TERMINE'
   outcome?: AssetStatus | null
   createdAt: string
   updatedAt: string
+  incident?: Incident
+  asset?: Pick<Asset, 'id' | 'inventoryNumber' | 'serialNumber' | 'model' | 'status'> & {
+    brand?: Ref
+    materialType?: Ref
+    category?: Ref
+  }
 }
 
-/** Réparation telle que renvoyée par l’API détail matériel (GET /api/assets/:id) */
 export type RepairFromApi = {
   id: number
-  incidentId: number
+  assetId?: number
+  incidentId: number | null
   workshopEntryDate: string
   workshopExitDate: string | null
   workshopOut?: string | null
@@ -72,6 +143,7 @@ export type RepairFromApi = {
   cost: number | null
   status: Repair['status']
   outcome: AssetStatus | null
+  technicianName?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -88,6 +160,8 @@ export type HistoryEvent = {
     | 'INCIDENT_REPORTED'
     | 'REPAIR_STARTED'
     | 'REPAIR_FINISHED'
+    | 'MAINTENANCE_CREATED'
+    | 'LOCATION_CHANGED'
   payload: Record<string, unknown>
   createdAt: string
 }
@@ -104,23 +178,78 @@ export type ScreenLoanStatus = 'RETURNED' | 'NOT_RETURNED'
 export type ScreenLoan = {
   id: number
   assetId: number
-  borrowerName: string
-  borrowerDepartment?: string | null
+  borrowerFirstName: string
+  borrowerLastName: string
+  departmentId?: number | null
+  department?: Ref | null
   loanDate: string
   expectedReturnDate: string
   returnedAt: string | null
   note?: string | null
   createdAt: string
-  asset?: Pick<Asset, 'id' | 'inventoryNumber' | 'type' | 'brand' | 'model' | 'status'>
+  asset?: Pick<Asset, 'id' | 'inventoryNumber' | 'serialNumber' | 'model' | 'status'> & {
+    brand?: Ref
+    materialType?: Ref
+    category?: Ref
+  }
 }
 
-/** Réponse de l’API GET /api/dashboard (backend) */
+export type MaintenanceStatus = 'PLANIFIEE' | 'EN_COURS' | 'TERMINEE' | 'ANNULEE'
+
+export type Maintenance = {
+  id: number
+  assetId: number
+  title: string
+  description?: string | null
+  scheduledDate: string
+  completedDate?: string | null
+  technician?: string | null
+  cost?: number | string | null
+  status: MaintenanceStatus
+  createdAt: string
+  updatedAt: string
+  asset?: Pick<Asset, 'id' | 'inventoryNumber' | 'model' | 'status'> & {
+    brand?: Ref
+    materialType?: Ref
+  }
+}
+
+export type AttachmentType = 'PHOTO' | 'FACTURE' | 'GARANTIE' | 'MANUEL' | 'AUTRE'
+
+export type Attachment = {
+  id: number
+  assetId: number
+  type: AttachmentType
+  fileName: string
+  filePath: string
+  uploadedAt: string
+}
+
+export type MovementType = 'ENTREE' | 'SORTIE' | 'TRANSFERT'
+
+export type AssetMovement = {
+  id: number
+  assetId: number
+  fromLocationId?: number | null
+  toLocationId?: number | null
+  fromLocation?: Ref | null
+  toLocation?: Ref | null
+  movementType: MovementType
+  movedAt: string
+  note?: string | null
+  createdAt: string
+  asset?: Pick<Asset, 'id' | 'inventoryNumber' | 'model' | 'status'>
+}
+
 export type DashboardApiResponse = {
   simple_data: {
     totalMateriels: number
     enStock: number
     affectes: number
     reparationsEnCours: number
+    enPanne: number
+    garantiesExpirees: number
+    aRenouveler: number
   }
   repartition_par_etat: Array<{ etat: string; libelle: string; count: number }>
   top_directions_pannes: Array<{ direction: string; count: number }>
@@ -141,7 +270,6 @@ export type MachinesStatsPoint = {
   totalActivity: number
 }
 
-/** Réponse de l’API GET /api/assets/:id (détail + historique + incidents) */
 export type AssetDetailsApi = Asset & {
   history: HistoryEvent[]
   currentAssignment: Assignment | null

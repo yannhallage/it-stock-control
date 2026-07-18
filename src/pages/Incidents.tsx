@@ -5,14 +5,16 @@ import { useAssets } from '../api/hooks/useAssets'
 import { useImpression } from '../api/hooks/useImpression'
 import { useIncidents } from '../api/hooks/useIncidents'
 import { ReportIncidentDrawer } from '../components/drawers/ReportIncidentDrawer'
+import { formatBrandModel, getDepartmentName, getTypeName } from '../lib/asset-labels'
 import { formatDate } from '../lib/format'
 import type { Asset, Incident } from '../types'
-import { Button, Card, PageTitle, Table } from '../components/Ui'
+import { Button, Card, PageTitle, Select, Table } from '../components/Ui'
 
 export function IncidentsPage() {
   const [assets, setAssets] = useState<Asset[]>([])
   const [items, setItems] = useState<Incident[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [statusFilter, setStatusFilter] = useState<'OUVERT' | 'CLOS' | ''>('OUVERT')
 
   const [reportDrawerOpen, setReportDrawerOpen] = useState(false)
 
@@ -30,7 +32,10 @@ export function IncidentsPage() {
 
   function load() {
     setError(null)
-    Promise.all([fetchAssets(), fetchIncidents({ status: 'OUVERT' })])
+    Promise.all([
+      fetchAssets(),
+      fetchIncidents(statusFilter ? { status: statusFilter } : {}),
+    ])
       .then(([a, i]) => {
         setAssets(a ?? [])
         setItems(i ?? [])
@@ -45,7 +50,7 @@ export function IncidentsPage() {
   useEffect(() => {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [statusFilter])
 
   return (
     <div className="space-y-6">
@@ -96,8 +101,19 @@ export function IncidentsPage() {
         onCreated={load}
       />
 
-      <Card title="Pannes en cours (incidents ouverts)">
-        <Table columns={['Inventaire', 'Matériel', 'Direction', 'Signalé le', 'Description']}>
+      <Card title="Pannes">
+        <div className="mb-4 max-w-xs">
+          <Select
+            label="Affichage"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as 'OUVERT' | 'CLOS' | '')}
+          >
+            <option value="OUVERT">En attente (ouvertes)</option>
+            <option value="CLOS">Historique (clôturées)</option>
+            <option value="">Toutes</option>
+          </Select>
+        </div>
+        <Table columns={['Inventaire', 'Matériel', 'Direction', 'Signalé le', 'Statut', 'Description']}>
           {items.map((it) => {
             const a = assetsById.get(it.assetId)
             return (
@@ -106,25 +122,28 @@ export function IncidentsPage() {
                   {a?.inventoryNumber ?? `#${it.assetId}`}
                 </td>
                 <td className="px-4 py-3 text-gray-600 text-[13px]">
-                  {a ? `${a.type} — ${a.brand} ${a.model}` : '—'}
+                  {a ? `${getTypeName(a)} — ${formatBrandModel(a)}` : '—'}
                 </td>
-                <td className="px-4 py-3 text-gray-600 text-[13px]">{it.department}</td>
+                <td className="px-4 py-3 text-gray-600 text-[13px]">{getDepartmentName(it)}</td>
                 <td className="px-4 py-3 text-gray-600 text-[13px]">
                   {formatDate(it.reportedAt)}
                 </td>
+                <td className="px-4 py-3 text-gray-600 text-[13px]">{it.status}</td>
                 <td className="px-4 py-3 text-gray-600 text-[13px]">{it.description}</td>
               </tr>
             )
           })}
           {!items.length ? (
             <tr>
-              <td className="px-4 py-8 text-center text-gray-500" colSpan={5}>
+              <td className="px-4 py-8 text-center text-gray-500" colSpan={6}>
                 {loading ? (
                   <span className="inline-flex w-full items-center justify-center" aria-label="Chargement">
                     <BeatLoader size={10} color="var(--color-primary)" />
                   </span>
+                ) : statusFilter === 'OUVERT' ? (
+                  'Aucune panne en attente.'
                 ) : (
-                  'Aucune panne en cours.'
+                  'Aucune panne pour ce filtre.'
                 )}
               </td>
             </tr>

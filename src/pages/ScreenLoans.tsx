@@ -6,6 +6,7 @@ import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
 import { useImpression } from '../api/hooks/useImpression'
 import { useScreenLoans } from '../api/hooks/useScreenLoans'
+import { formatBrandModel, getDepartmentName, getTypeName } from '../lib/asset-labels'
 import { formatDate } from '../lib/format'
 import type { Asset, ScreenLoan, ScreenLoanStatus } from '../types'
 import { StatusBadge } from '../components/Badge'
@@ -35,6 +36,13 @@ function normalizeText(value: string) {
 
 function loanStatus(loan: ScreenLoan): ScreenLoanStatus {
   return loan.returnedAt ? 'RETURNED' : 'NOT_RETURNED'
+}
+
+function borrowerFullName(loan: ScreenLoan): string {
+  return [loan.borrowerLastName, loan.borrowerFirstName]
+    .map((part) => (part ?? '').trim())
+    .filter(Boolean)
+    .join(' ')
 }
 
 function isOverdue(loan: ScreenLoan) {
@@ -67,7 +75,7 @@ function ScreenLoanBadge({ loan }: { loan: ScreenLoan }) {
 
 function assetLabel(asset: Asset | ScreenLoan['asset'] | undefined, fallbackId: number) {
   if (!asset) return `#${fallbackId}`
-  return `${asset.inventoryNumber} - ${asset.brand} ${asset.model}`
+  return `${asset.inventoryNumber} - ${formatBrandModel(asset)}`
 }
 
 function startOfDay(date: Date) {
@@ -250,13 +258,13 @@ export function ScreenLoansPage() {
         if (!query) return true
         const asset = loan.asset ?? assetsById.get(loan.assetId)
         const searchable = [
-          loan.borrowerName,
-          loan.borrowerDepartment ?? '',
+          loan.borrowerLastName,
+          loan.borrowerFirstName,
+          getDepartmentName(loan),
           loan.note ?? '',
           asset?.inventoryNumber ?? '',
-          asset?.type ?? '',
-          asset?.brand ?? '',
-          asset?.model ?? '',
+          getTypeName(asset),
+          formatBrandModel(asset),
         ]
           .join(' ')
           .toLowerCase()
@@ -468,16 +476,18 @@ export function ScreenLoansPage() {
               <tr key={loan.id} className="hover:bg-gray-50">
                 <td className="border-b border-slate-100 px-3 py-2 font-medium text-[13px]">
                   {assetLabel(asset, loan.assetId)}
-                  {asset?.type ? <div className="mt-0.5 text-xs font-normal text-gray-500">{asset.type}</div> : null}
+                  {getTypeName(asset) !== '—' ? (
+                    <div className="mt-0.5 text-xs font-normal text-gray-500">{getTypeName(asset)}</div>
+                  ) : null}
                 </td>
                 <td className="border-b border-slate-100 px-3 py-2">
                   {asset ? <StatusBadge status={asset.status} /> : '—'}
                 </td>
                 <td className="border-b border-slate-100 px-3 py-2 text-[13px] text-gray-700">
-                  {loan.borrowerName}
+                  {borrowerFullName(loan) || '—'}
                 </td>
                 <td className="border-b border-slate-100 px-3 py-2 text-[13px] text-gray-700">
-                  {loan.borrowerDepartment || '—'}
+                  {getDepartmentName(loan)}
                 </td>
                 <td className="border-b border-slate-100 px-3 py-2 text-[13px] text-gray-700">
                   {formatDate(loan.loanDate) || '—'}

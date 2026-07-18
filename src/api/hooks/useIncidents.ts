@@ -55,8 +55,7 @@ export function useIncidents(): UseIncidentsResult {
     setLoading(true)
     setError(null)
     try {
-      const { incident } = await createIncidentForAssetService(assetId, payload)
-      return incident
+      return await createIncidentForAssetService(assetId, payload)
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Erreur lors de l'enregistrement de l'incident."
       setError(String(message))

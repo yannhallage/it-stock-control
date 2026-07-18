@@ -7,18 +7,16 @@ export type IncidentStatus = 'OUVERT' | 'CLOS'
 export type ListIncidentsParams = {
   assetId?: number
   status?: IncidentStatus
+  departmentId?: number
 }
 
 export type CreateIncidentPayload = {
   description: string
   reportedAt: string
-  department: string
+  departmentId: number
 }
 
-export type CreateIncidentResponse = {
-  incident: Incident
-  historyEvents: Array<{ id: number; assetId: number; type: string; payload: Record<string, unknown>; createdAt: string }>
-}
+export type CreateIncidentResponse = Incident
 
 export type UpdateIncidentStatusPayload = {
   status: IncidentStatus
@@ -28,6 +26,7 @@ export function listIncidentsService(params: ListIncidentsParams = {}): Promise<
   const searchParams = new URLSearchParams()
   if (params.assetId != null) searchParams.set('assetId', String(params.assetId))
   if (params.status) searchParams.set('status', params.status)
+  if (params.departmentId != null) searchParams.set('departmentId', String(params.departmentId))
 
   const query = searchParams.toString()
   const path = query ? `${ENDPOINTS.incidents.base}?${query}` : ENDPOINTS.incidents.base

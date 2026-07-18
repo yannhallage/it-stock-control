@@ -1,6 +1,6 @@
 import { ENDPOINTS } from '../endpoints'
 import { get, post } from '../http'
-import type { Assignment } from '../../types'
+import type { Assignment, AssignmentUser } from '../../types'
 
 export type ListAssignmentsParams = {
   assetId?: number
@@ -8,21 +8,14 @@ export type ListAssignmentsParams = {
 }
 
 export type CreateAssignmentPayload = {
-  department: string
-  /** Objet JSON attendu par le backend: { name: string } ou { names: string[] } pour plusieurs utilisateurs */
-  user: Record<string, unknown>
+  userId: string
+  departmentId: number
   startDate: string
+  note?: string
 }
 
-export type CreateAssignmentResponse = {
-  assignment: Assignment
-  historyEvents: Array<{ id: number; assetId: number; type: string; payload: Record<string, unknown>; createdAt: string }>
-}
-
-export type EndAssignmentResponse = {
-  assignment: Assignment
-  historyEvents: Array<{ id: number; assetId: number; type: string; payload: Record<string, unknown>; createdAt: string }>
-}
+export type CreateAssignmentResponse = Assignment
+export type EndAssignmentResponse = Assignment
 
 export function listAssignmentsService(params: ListAssignmentsParams = {}): Promise<Assignment[]> {
   const base = ENDPOINTS.assignments.base
@@ -36,9 +29,22 @@ export function listAssignmentsService(params: ListAssignmentsParams = {}): Prom
   return get<Assignment[]>(path)
 }
 
-/** Récupère toutes les affectations (sans filtre). */
 export function listAllAssignmentsService(): Promise<Assignment[]> {
   return get<Assignment[]>(`${ENDPOINTS.assignments.base}/all`)
+}
+
+/** Users uniques extraits des affectations (pas d'endpoint /api/users). */
+export async function listKnownUsersFromAssignmentsService(): Promise<AssignmentUser[]> {
+  const assignments = await listAllAssignmentsService()
+  const map = new Map<string, AssignmentUser>()
+  for (const a of assignments) {
+    if (a.user?.id) {
+      map.set(a.user.id, a.user)
+    }
+  }
+  return Array.from(map.values()).sort((a, b) =>
+    `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'fr'),
+  )
 }
 
 export function createAssignmentForAssetService(

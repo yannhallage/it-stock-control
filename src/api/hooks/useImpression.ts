@@ -5,10 +5,13 @@ import {
   downloadAssetsPdfService,
   downloadAssignmentsPdfService,
   downloadIncidentsPdfService,
+  downloadInventoryPdfService,
   downloadScreenLoanPdfByIdService,
   downloadScreenLoansPdfService,
+  downloadSignaleticPdfService,
   downloadSuppliersPdfService,
   type AssetsPdfFilters,
+  type InventoryPdfFilters,
 } from '../services/impression.service'
 
 type DownloadKind = 'assets' | 'assignments' | 'suppliers' | 'incidents' | 'screenLoans'
@@ -110,11 +113,43 @@ export function useImpression() {
     }
   }, [])
 
+  const downloadInventoryReport = useCallback(async (filters?: InventoryPdfFilters) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const blob = await downloadInventoryPdfService(filters)
+      saveBlob(blob, 'inventaire-parc.pdf')
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Erreur lors du téléchargement du rapport inventaire."
+      setError(message)
+      throw e
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const downloadSignaleticReport = useCallback(async (filters?: InventoryPdfFilters) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const blob = await downloadSignaleticPdfService(filters)
+      saveBlob(blob, 'fiches-signaletiques.pdf')
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Erreur lors du téléchargement des fiches signalétiques."
+      setError(message)
+      throw e
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   return {
     downloadReport,
     downloadAssignmentReport,
     downloadAssetReport,
     downloadScreenLoanReport,
+    downloadInventoryReport,
+    downloadSignaleticReport,
     loading,
     error,
   }
