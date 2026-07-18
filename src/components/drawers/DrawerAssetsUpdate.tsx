@@ -1,6 +1,9 @@
 import type { Dispatch, FormEvent, SetStateAction } from 'react'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import type { Brand } from '../../api/services/brands.service'
+import type { Category } from '../../api/services/categories.service'
+import type { Location } from '../../api/services/locations.service'
 import type { Supplier } from '../../api/services/suppliers.service'
 import type { MaterialType } from '../../api/services/material-types.service'
 import type { AssetCreateFormState } from './DrawerAssets'
@@ -11,8 +14,11 @@ type DrawerAssetsUpdateProps = {
   onClose: () => void
   form: AssetCreateFormState
   setForm: Dispatch<SetStateAction<AssetCreateFormState>>
+  categories: Category[]
   materialTypes: MaterialType[]
+  brands: Brand[]
   suppliers: Supplier[]
+  locations: Location[]
   loading: boolean
   onSubmit: (e: FormEvent) => void
 }
@@ -24,8 +30,11 @@ export function DrawerAssetsUpdate({
   onClose,
   form,
   setForm,
+  categories,
   materialTypes,
+  brands,
   suppliers,
+  locations,
   loading,
   onSubmit,
 }: DrawerAssetsUpdateProps) {
@@ -104,22 +113,56 @@ export function DrawerAssetsUpdate({
                   className="font-mono"
                 />
                 <Select
+                  label="Catégorie"
+                  value={form.categoryId}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      categoryId: e.target.value ? Number(e.target.value) : '',
+                    })
+                  }
+                >
+                  <option value="">Sélectionner une catégorie</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+                <Select
                   label="Type (PC, Imprimante, etc.)"
-                  value={form.type}
-                  onChange={(e) => setForm({ ...form, type: e.target.value })}
+                  value={form.materialTypeId}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      materialTypeId: e.target.value ? Number(e.target.value) : '',
+                    })
+                  }
                 >
                   <option value="">Sélectionner un type</option>
                   {materialTypes.map((t) => (
-                    <option key={t.id} value={t.name}>
+                    <option key={t.id} value={t.id}>
                       {t.name}
                     </option>
                   ))}
                 </Select>
-                <Input
+                <Select
                   label="Marque"
-                  value={form.brand}
-                  onChange={(e) => setForm({ ...form, brand: e.target.value })}
-                />
+                  value={form.brandId}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      brandId: e.target.value ? Number(e.target.value) : '',
+                    })
+                  }
+                >
+                  <option value="">Sélectionner une marque</option>
+                  {brands.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </Select>
                 <Input
                   label="Numéro de série du matériel"
                   value={form.serialNumber}
@@ -145,13 +188,35 @@ export function DrawerAssetsUpdate({
                 />
                 <Select
                   label="Fournisseur"
-                  value={form.supplier}
-                  onChange={(e) => setForm({ ...form, supplier: e.target.value })}
+                  value={form.supplierId}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      supplierId: e.target.value ? Number(e.target.value) : '',
+                    })
+                  }
                 >
                   <option value="">Sélectionner un fournisseur</option>
                   {suppliers.map((s) => (
-                    <option key={s.id} value={s.name}>
+                    <option key={s.id} value={s.id}>
                       {s.name}
+                    </option>
+                  ))}
+                </Select>
+                <Select
+                  label="Emplacement (optionnel)"
+                  value={form.locationId}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      locationId: e.target.value ? Number(e.target.value) : '',
+                    })
+                  }
+                >
+                  <option value="">Aucun emplacement</option>
+                  {locations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
                     </option>
                   ))}
                 </Select>

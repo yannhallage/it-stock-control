@@ -119,7 +119,7 @@ export function Table({
   children,
 }: PropsWithChildren<{ columns: string[] }>) {
   return (
-    <div className="w-full min-w-0 overflow-x-auto border border-gray-200 bg-white">
+    <div className="scrollbar-app w-full min-w-0 overflow-x-auto border border-gray-200 bg-white">
       <table className="w-full min-w-max border-collapse text-sm">
         <thead>
           <tr className="bg-gray-50">

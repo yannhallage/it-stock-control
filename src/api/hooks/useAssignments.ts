@@ -54,8 +54,7 @@ export function useAssignments(): UseAssignmentsResult {
     setLoading(true)
     setError(null)
     try {
-      const { assignment } = await createAssignmentForAssetService(assetId, payload)
-      return assignment
+      return await createAssignmentForAssetService(assetId, payload)
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Erreur lors de la création de l'affectation."
       setError(String(message))
@@ -69,8 +68,7 @@ export function useAssignments(): UseAssignmentsResult {
     setLoading(true)
     setError(null)
     try {
-      const { assignment } = await endAssignmentService(id)
-      return assignment
+      return await endAssignmentService(id)
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Erreur lors de la clôture de l'affectation."
       setError(String(message))

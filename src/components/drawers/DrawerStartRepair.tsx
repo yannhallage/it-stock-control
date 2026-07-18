@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'react-toastify'
 import type { StartRepairPayload } from '../../api/services/workshop.service'
+import { getDepartmentName } from '../../lib/asset-labels'
 import type { Asset, Incident } from '../../types'
 import { Button, Input, Select, Textarea } from '../Ui'
 
@@ -168,7 +169,7 @@ export function DrawerStartRepair({
                 <option value="">Sélectionner…</option>
                 {incidentChoices.map((i) => (
                   <option key={i.id} value={i.id}>
-                    #{i.id} — {assetsById.get(i.assetId)?.inventoryNumber ?? `#${i.assetId}`} — {i.department}
+                    #{i.id} — {assetsById.get(i.assetId)?.inventoryNumber ?? `#${i.assetId}`} — {getDepartmentName(i)}
                   </option>
                 ))}
               </Select>

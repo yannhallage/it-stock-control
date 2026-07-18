@@ -4,31 +4,43 @@ import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
 import { useAssignments } from '../api/hooks/useAssignments'
+import { useDepartments } from '../api/hooks/useDepartments'
 import { useImpression } from '../api/hooks/useImpression'
+import { listKnownUsersFromAssignmentsService } from '../api/services/assignments.service'
+import {
+  formatBrandModel,
+  formatUserName,
+  getDepartmentName,
+  getTypeName,
+} from '../lib/asset-labels'
 import { formatDate } from '../lib/format'
-import type { Asset, Assignment } from '../types'
+import type { Asset, Assignment, AssignmentUser } from '../types'
 import { StatusBadge } from '../components/Badge'
 import { DrawerAssignments } from '../components/drawers/DrawerAssignments'
 import { IncidentDrawer } from '../components/drawers/IncidentDrawer'
-import { Avatar, Button, Card, Input, PageTitle, Select, Table, Tooltip } from '../components/Ui'
+import { Avatar, Button, Card, Input, PageTitle, Select, Table } from '../components/Ui'
 
 type AssetRow = Asset & { activeAssignment?: Assignment | null }
 type IncidentDrawerTarget = {
   assetId: number
   inventoryNumber: string
   materialName: string
-  department: string
+  departmentId: number
+  departmentName: string
   userDisplay: string
 }
 
 export function AssignmentsPage() {
   const [items, setItems] = useState<AssetRow[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [departments, setDepartments] = useState<Array<{ id: number; name: string }>>([])
+  const [knownUsers, setKnownUsers] = useState<AssignmentUser[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const [assetId, setAssetId] = useState<number | ''>('')
-  const [department, setDepartment] = useState('')
-  const [users, setUsers] = useState<string[]>([''])
+  const [departmentId, setDepartmentId] = useState<number | ''>('')
+  const [userId, setUserId] = useState('')
+  const [customUserId, setCustomUserId] = useState('')
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
   const [statusFilter, setStatusFilter] = useState<'' | Asset['status']>('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -43,31 +55,28 @@ export function AssignmentsPage() {
     loading: assignmentsLoading,
     error: apiError,
   } = useAssignments()
+  const { fetchDepartments } = useDepartments()
   const { downloadAssignmentReport, loading: printLoading, error: printError } = useImpression()
 
   const loading = assetsLoading || assignmentsLoading
-
-  function getAssignmentUserNames(assignment: Assignment): string[] {
-    const u = assignment.user
-    return u && typeof u === 'object' && 'names' in u && Array.isArray(u.names)
-      ? u.names.filter(Boolean)
-      : u && typeof u === 'object' && 'name' in u && typeof u.name === 'string'
-        ? [u.name]
-        : typeof u === 'string'
-          ? u.split(/\s*,\s*/).map((n) => n.trim()).filter(Boolean)
-          : []
-  }
 
   const assignable = useMemo(() => {
     return items
       .filter((a) => a.status === 'EN_STOCK_NON_AFFECTE')
       .slice()
       .sort((a, b) => a.inventoryNumber.localeCompare(b.inventoryNumber, 'fr', { numeric: true }))
+      .map((a) => ({
+        id: a.id,
+        inventoryNumber: a.inventoryNumber,
+        model: a.model,
+        materialType: a.materialType,
+        brand: a.brand,
+      }))
   }, [items])
 
   function load() {
     setError(null)
-    Promise.all([fetchAssets({ with: 'activeAssignment' }), fetchAllAssignments()])
+    Promise.all([fetchAssets(), fetchAllAssignments()])
       .then(([assetsData, assignmentsData]) => {
         setItems((assetsData as AssetRow[]) ?? [])
         setAssignments(assignmentsData ?? [])
@@ -84,6 +93,19 @@ export function AssignmentsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    if (!assignmentDrawerOpen) return
+    Promise.all([fetchDepartments(), listKnownUsersFromAssignmentsService()])
+      .then(([depts, users]) => {
+        setDepartments(depts ?? [])
+        setKnownUsers(users ?? [])
+      })
+      .catch((e) => {
+        const msg = String(e?.message ?? e)
+        toast.error(msg || 'Erreur lors du chargement des données d\'affectation.')
+      })
+  }, [assignmentDrawerOpen, fetchDepartments])
+
   async function createAssignment(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
@@ -91,21 +113,26 @@ export function AssignmentsPage() {
       toast.warning('Veuillez sélectionner un matériel.')
       return
     }
+    const resolvedUserId = userId.trim() || customUserId.trim()
+    if (!resolvedUserId) {
+      toast.warning('Veuillez sélectionner ou saisir un utilisateur.')
+      return
+    }
+    if (!departmentId) {
+      toast.warning('Veuillez sélectionner une direction.')
+      return
+    }
     try {
-      const names = users.map((u) => u.trim()).filter(Boolean)
-      if (!names.length) {
-        toast.warning('Veuillez saisir au moins un utilisateur.')
-        return
-      }
       await createAssignmentForAsset(Number(assetId), {
-        department,
-        user: names.length === 1 ? { name: names[0] } : { names },
+        userId: resolvedUserId,
+        departmentId: Number(departmentId),
         startDate,
       })
       toast.success('Affectation créée avec succès.')
       setAssetId('')
-      setDepartment('')
-      setUsers([''])
+      setDepartmentId('')
+      setUserId('')
+      setCustomUserId('')
       setStartDate(new Date().toISOString().slice(0, 10))
       setAssignmentDrawerOpen(false)
       load()
@@ -159,12 +186,16 @@ export function AssignmentsPage() {
         isOpen={assignmentDrawerOpen}
         onClose={() => setAssignmentDrawerOpen(false)}
         assignable={assignable}
+        departments={departments}
+        knownUsers={knownUsers}
         assetId={assetId}
         setAssetId={setAssetId}
-        department={department}
-        setDepartment={setDepartment}
-        users={users}
-        setUsers={setUsers}
+        departmentId={departmentId}
+        setDepartmentId={setDepartmentId}
+        userId={userId}
+        setUserId={setUserId}
+        customUserId={customUserId}
+        setCustomUserId={setCustomUserId}
         startDate={startDate}
         setStartDate={setStartDate}
         loading={loading}
@@ -222,14 +253,13 @@ export function AssignmentsPage() {
               const query = searchTerm.trim().toLowerCase()
               if (!query) return true
               const asset = items.find((i) => i.id === a.assetId)
-              const userNames = getAssignmentUserNames(a).join(' ').toLowerCase()
+              const userName = formatUserName(a.user).toLowerCase()
               const searchable = [
                 asset?.inventoryNumber ?? '',
-                asset?.type ?? '',
-                asset?.brand ?? '',
-                asset?.model ?? '',
-                a.department ?? '',
-                userNames,
+                getTypeName(asset),
+                formatBrandModel(asset),
+                getDepartmentName(a),
+                userName,
               ]
                 .join(' ')
                 .toLowerCase()
@@ -237,42 +267,29 @@ export function AssignmentsPage() {
             })
             .map((a) => {
               const asset = items.find((i) => i.id === a.assetId)
-              const names = getAssignmentUserNames(a)
+              const userName = formatUserName(a.user)
+              const avatarName = userName === '—' ? '?' : userName
               return (
                 <tr key={a.id} className="hover:bg-gray-50">
                   <td className="border-b border-slate-100 px-3 py-2 font-medium text-[13px]">
                     {asset?.inventoryNumber ?? '—'}
                   </td>
                   <td className="border-b border-slate-100 px-3 py-2 text-[13px]">
-                    {asset ? `${asset.type} — ${asset.brand} ${asset.model}` : '—'}
+                    {asset ? `${getTypeName(asset)} — ${formatBrandModel(asset)}` : '—'}
                   </td>
                   <td className="border-b border-slate-100 px-3 py-2">
                     {asset ? <StatusBadge status={asset.status} /> : '—'}
                   </td>
-                  <td className="border-b border-slate-100 px-3 py-2 text-[13px]">{a.department}</td>
+                  <td className="border-b border-slate-100 px-3 py-2 text-[13px]">{getDepartmentName(a)}</td>
                   <td className="border-b border-slate-100 px-3 py-2">
-                    {(() => {
-                      if (!names.length) return '—'
-                      if (names.length === 1) {
-                        return (
-                          <span className="flex items-center gap-2">
-                            <Avatar name={names[0]} size="sm" />
-                            <span className="text-gray-900">{names[0]}</span>
-                          </span>
-                        )
-                      }
-                      return (
-                        <span className="flex flex-wrap items-center gap-1">
-                          {names.map((userName, i) => (
-                            <Tooltip key={i} text={userName} placement="top">
-                              <span className="inline-flex transition-transform duration-200 group-hover:-translate-y-1">
-                                <Avatar name={userName} size="sm" maxLetters={1} />
-                              </span>
-                            </Tooltip>
-                          ))}
-                        </span>
-                      )
-                    })()}
+                    {userName === '—' ? (
+                      '—'
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Avatar name={avatarName} size="sm" />
+                        <span className="text-gray-900">{userName}</span>
+                      </span>
+                    )}
                   </td>
                   <td className="border-b border-slate-100 px-3 py-2">{formatDate(a.startDate)}</td>
                   <td className="border-b border-slate-100 px-3 py-2">
@@ -301,9 +318,10 @@ export function AssignmentsPage() {
                           setIncidentTarget({
                             assetId: a.assetId,
                             inventoryNumber: asset?.inventoryNumber ?? `#${a.assetId}`,
-                            materialName: asset ? `${asset.type} — ${asset.brand} ${asset.model}` : '—',
-                            department: a.department || '—',
-                            userDisplay: names.length ? names.join(', ') : '—',
+                            materialName: asset ? `${getTypeName(asset)} — ${formatBrandModel(asset)}` : '—',
+                            departmentId: a.departmentId,
+                            departmentName: getDepartmentName(a),
+                            userDisplay: userName,
                           })
                         }
                         variant="danger"
@@ -324,7 +342,6 @@ export function AssignmentsPage() {
                             clipRule="evenodd"
                           />
                         </svg>
-                        {/* Déclarer panne */}
                       </Button>
                       <Button
                         onClick={() => handleEndAssignment(a.id)}
@@ -358,14 +375,13 @@ export function AssignmentsPage() {
               const query = searchTerm.trim().toLowerCase()
               if (!query) return true
               const asset = items.find((i) => i.id === a.assetId)
-              const userNames = getAssignmentUserNames(a).join(' ').toLowerCase()
+              const userName = formatUserName(a.user).toLowerCase()
               const searchable = [
                 asset?.inventoryNumber ?? '',
-                asset?.type ?? '',
-                asset?.brand ?? '',
-                asset?.model ?? '',
-                a.department ?? '',
-                userNames,
+                getTypeName(asset),
+                formatBrandModel(asset),
+                getDepartmentName(a),
+                userName,
               ]
                 .join(' ')
                 .toLowerCase()
@@ -393,7 +409,8 @@ export function AssignmentsPage() {
         assetId={incidentTarget?.assetId ?? null}
         inventoryNumber={incidentTarget?.inventoryNumber ?? ''}
         materialName={incidentTarget?.materialName ?? ''}
-        department={incidentTarget?.department ?? ''}
+        departmentId={incidentTarget?.departmentId ?? null}
+        departmentName={incidentTarget?.departmentName ?? ''}
         userDisplay={incidentTarget?.userDisplay ?? ''}
       />
     </div>

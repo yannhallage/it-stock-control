@@ -6,10 +6,26 @@ import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
 import { useAssignments } from '../api/hooks/useAssignments'
+import { useBrands } from '../api/hooks/useBrands'
+import { useCategories } from '../api/hooks/useCategories'
+import { useDepartments } from '../api/hooks/useDepartments'
 import { useImpression } from '../api/hooks/useImpression'
+import { useLocations } from '../api/hooks/useLocations'
 import { useScreenLoans } from '../api/hooks/useScreenLoans'
 import { useSuppliers } from '../api/hooks/useSuppliers'
 import { useMaterialTypes } from '../api/hooks/useMaterialTypes'
+import { listKnownUsersFromAssignmentsService } from '../api/services/assignments.service'
+import type { Brand } from '../api/services/brands.service'
+import type { Category } from '../api/services/categories.service'
+import type { Location } from '../api/services/locations.service'
+import {
+  formatUserName,
+  getBrandName,
+  getDepartmentName,
+  getSerialNumber,
+  getSupplierName,
+  getTypeName,
+} from '../lib/asset-labels'
 import { errorMessageFromUnknown } from '../lib/errors'
 import { formatDate } from '../lib/format'
 import type { Asset, AssetDetailsApi, AssetStatus, Assignment, ScreenLoan } from '../types'
@@ -66,15 +82,18 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function serialNumberValue(asset: Asset): string {
-  return (asset.serialNumber ?? asset.serial_number ?? '').trim()
-}
-
 /** Recherche locale (hors API) sur les champs affichés dans la liste. */
 function assetMatchesQuery(a: Asset, query: string): boolean {
   const q = query.trim().toLowerCase()
   if (!q) return true
-  const hay = [a.inventoryNumber, serialNumberValue(a), a.type, a.brand, a.model, a.supplier]
+  const hay = [
+    a.inventoryNumber,
+    getSerialNumber(a),
+    getTypeName(a),
+    getBrandName(a),
+    a.model,
+    getSupplierName(a),
+  ]
     .join(' ')
     .toLowerCase()
   return hay.includes(q)
@@ -92,13 +111,57 @@ function diffInMonths(start: string, end: string): number | null {
 }
 
 function warrantyLabel(asset: Asset): string {
-  if (typeof asset.warrantyMonths === 'number') return `${asset.warrantyMonths} mois`
   if (asset.warrantyEndDate) {
     const start = asset.warrantyStartDate ?? asset.entryDate
     const months = diffInMonths(start, asset.warrantyEndDate)
     if (months !== null) return `${months} mois`
   }
   return '—'
+}
+
+function addMonthsToDate(dateStr: string, months: number): string {
+  const d = new Date(dateStr)
+  d.setMonth(d.getMonth() + months)
+  return d.toISOString().slice(0, 10)
+}
+
+function warrantyEndDateFromMonths(entryDate: string, warrantyMonths: string): string | undefined {
+  const parsed = Number(warrantyMonths)
+  if (!Number.isFinite(parsed) || parsed <= 0 || !entryDate) return undefined
+  return addMonthsToDate(entryDate, parsed)
+}
+
+function warrantyMonthsFromAsset(asset: Asset): string {
+  if (asset.warrantyEndDate) {
+    const start = asset.warrantyStartDate ?? asset.entryDate
+    const months = diffInMonths(start, asset.warrantyEndDate)
+    if (months !== null) return String(months)
+  }
+  return ''
+}
+
+function nextInventoryForMaterialTypeId(
+  materialTypeId: number,
+  materialTypes: MaterialType[],
+  assets: Asset[],
+): string {
+  const typeName = materialTypes.find((t) => t.id === materialTypeId)?.name ?? 'MAT'
+  return nextSequentialInventoryNumber(typeName, assets)
+}
+
+function emptyAssetForm(inventoryNumber = ''): AssetCreateFormState {
+  return {
+    inventoryNumber,
+    serialNumber: '',
+    categoryId: '',
+    materialTypeId: '',
+    brandId: '',
+    supplierId: '',
+    locationId: '',
+    model: '',
+    entryDate: new Date().toISOString().slice(0, 10),
+    warrantyMonths: '',
+  }
 }
 
 function startOfDay(date: Date): Date {
@@ -166,27 +229,9 @@ function assetMatchesDateRange(asset: Asset, value: CalendarFilterValue): boolea
   return time >= range.start.getTime() && time <= range.end.getTime()
 }
 
-function assignmentUserNames(user: Assignment['user']): string[] {
-  if (typeof user === 'string') {
-    return user
-      .split(/\s*,\s*/)
-      .map((name) => name.trim())
-      .filter(Boolean)
-  }
-  if (user && typeof user === 'object' && 'names' in user && Array.isArray(user.names)) {
-    return user.names.map((name) => String(name).trim()).filter(Boolean)
-  }
-  if (user && typeof user === 'object' && 'name' in user && typeof user.name === 'string') {
-    const name = user.name.trim()
-    return name ? [name] : []
-  }
-  return []
-}
-
 function assignmentUsersLabel(assignment: Assignment | null | undefined): string {
   if (!assignment) return '—'
-  const names = assignmentUserNames(assignment.user)
-  return names.length ? names.join(', ') : '—'
+  return formatUserName(assignment.user)
 }
 
 /** Prochain numéro du type `PC0002`, `PC00303` (préfixe + suite numérique). */
@@ -433,9 +478,9 @@ function AssetPreviewModal({
         <div className="space-y-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="text-xs font-medium text-gray-500">{asset.type}</div>
+              <div className="text-xs font-medium text-gray-500">{getTypeName(asset)}</div>
               <div className="mt-1 text-lg font-semibold text-gray-900">
-                {asset.brand} {asset.model}
+                {getBrandName(asset)} {asset.model}
               </div>
               <div className="mt-1 text-xs text-gray-500">Inventaire {asset.inventoryNumber}</div>
             </div>
@@ -443,8 +488,8 @@ function AssetPreviewModal({
           </div>
 
           <div className="grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 sm:grid-cols-2">
-            <DetailItem label="N° série">{serialNumberValue(asset) || '—'}</DetailItem>
-            <DetailItem label="Fournisseur">{asset.supplier || '—'}</DetailItem>
+            <DetailItem label="N° série">{getSerialNumber(asset)}</DetailItem>
+            <DetailItem label="Fournisseur">{getSupplierName(asset)}</DetailItem>
             <DetailItem label="Date d'entrée">{formatDate(asset.entryDate) || '—'}</DetailItem>
             <DetailItem label="Date d'ajout">{formatDate(asset.createdAt) || '—'}</DetailItem>
             <DetailItem label="Garantie">{warrantyLabel(asset)}</DetailItem>
@@ -455,7 +500,7 @@ function AssetPreviewModal({
             <div className="text-sm font-semibold text-gray-900">Affectation actuelle</div>
             {assignment ? (
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <DetailItem label="Direction / service">{assignment.department || '—'}</DetailItem>
+                <DetailItem label="Direction / service">{getDepartmentName(assignment)}</DetailItem>
                 <DetailItem label="Personne(s) assignée(s)">{assignmentUsers || '—'}</DetailItem>
                 <DetailItem label="Date d'affectation">{formatDate(assignment.startDate) || '—'}</DetailItem>
               </div>
@@ -736,10 +781,13 @@ export function AssetsPage() {
   const [items, setItems] = useState<Asset[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [materialTypes, setMaterialTypes] = useState<MaterialType[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [brands, setBrands] = useState<Brand[]>([])
+  const [locations, setLocations] = useState<Location[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const [q, setQ] = useState('')
-  const [type, setType] = useState('')
+  const [materialTypeId, setMaterialTypeId] = useState<number | ''>('')
   const [status, setStatus] = useState<AssetStatus | ''>('')
   const [dateFilterOpen, setDateFilterOpen] = useState(false)
   const [entryDateRange, setEntryDateRange] = useState<CalendarFilterValue>(null)
@@ -753,16 +801,7 @@ export function AssetsPage() {
   const [incidentDrawerOpen, setIncidentDrawerOpen] = useState(false)
   const [incidentAssetId, setIncidentAssetId] = useState<number | ''>('')
 
-  const [form, setForm] = useState<AssetCreateFormState>(() => ({
-    inventoryNumber: nextSequentialInventoryNumber('PC', []),
-    serialNumber: '',
-    type: 'PC',
-    brand: '',
-    model: '',
-    entryDate: new Date().toISOString().slice(0, 10),
-    warrantyMonths: '',
-    supplier: '',
-  }))
+  const [form, setForm] = useState<AssetCreateFormState>(() => emptyAssetForm())
 
   const [assetToDelete, setAssetToDelete] = useState<number | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -773,21 +812,15 @@ export function AssetsPage() {
 
   const [assignmentDrawerOpen, setAssignmentDrawerOpen] = useState(false)
   const [assignAssetId, setAssignAssetId] = useState<number | ''>('')
-  const [assignDepartment, setAssignDepartment] = useState('')
-  const [assignUsers, setAssignUsers] = useState<string[]>([''])
+  const [assignDepartmentId, setAssignDepartmentId] = useState<number | ''>('')
+  const [assignUserId, setAssignUserId] = useState('')
+  const [assignCustomUserId, setAssignCustomUserId] = useState('')
   const [assignStartDate, setAssignStartDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [departments, setDepartments] = useState<Array<{ id: number; name: string }>>([])
+  const [knownUsers, setKnownUsers] = useState<Array<{ id: string; firstName: string; lastName: string; email: string }>>([])
 
   const [assetEditingId, setAssetEditingId] = useState<number | null>(null)
-  const [updateForm, setUpdateForm] = useState<AssetCreateFormState>(() => ({
-    inventoryNumber: '',
-    serialNumber: '',
-    type: '',
-    brand: '',
-    model: '',
-    entryDate: new Date().toISOString().slice(0, 10),
-    warrantyMonths: '',
-    supplier: '',
-  }))
+  const [updateForm, setUpdateForm] = useState<AssetCreateFormState>(() => emptyAssetForm())
 
   const { fetchAssets, getAssetById, createAsset, updateAsset, deleteAsset, loading, error: apiError } = useAssets()
   const { createAssignmentForAsset, loading: assignmentLoading, error: assignmentError } = useAssignments()
@@ -800,6 +833,10 @@ export function AssetsPage() {
   } = useScreenLoans()
   const { fetchSuppliers } = useSuppliers()
   const { fetchMaterialTypes } = useMaterialTypes()
+  const { fetchCategories } = useCategories()
+  const { fetchBrands } = useBrands()
+  const { fetchLocations } = useLocations()
+  const { fetchDepartments } = useDepartments()
 
   const loadAllForSeq = useCallback(async () => {
     const assets = await fetchAssets({})
@@ -813,11 +850,6 @@ export function AssetsPage() {
     return loans
   }, [fetchScreenLoans])
 
-  const types = useMemo(() => {
-    const s = new Set(items.map((a) => a.type).filter(Boolean))
-    return Array.from(s).sort((a, b) => a.localeCompare(b))
-  }, [items])
-
   const assignable = useMemo(() => {
     return allAssets
       .filter((a) => a.status === 'EN_STOCK_NON_AFFECTE')
@@ -826,9 +858,9 @@ export function AssetsPage() {
       .map((a) => ({
         id: a.id,
         inventoryNumber: a.inventoryNumber,
-        type: a.type,
-        brand: a.brand,
         model: a.model,
+        materialType: a.materialType,
+        brand: a.brand,
       }))
   }, [allAssets])
 
@@ -853,13 +885,32 @@ export function AssetsPage() {
 
   function load() {
     setError(null)
-    fetchAssets({ type, status })
+    fetchAssets({
+      materialTypeId: materialTypeId === '' ? undefined : materialTypeId,
+      status,
+    })
       .then(setItems)
       .catch((e) => {
         const msg = String(e?.message ?? e)
         toast.error(msg || 'Erreur lors du chargement.')
       })
   }
+
+  const loadReferenceData = useCallback(async () => {
+    const [cats, brs, locs, sups, types] = await Promise.all([
+      fetchCategories(),
+      fetchBrands(),
+      fetchLocations(),
+      fetchSuppliers(),
+      fetchMaterialTypes(),
+    ])
+    setCategories(cats ?? [])
+    setBrands(brs ?? [])
+    setLocations(locs ?? [])
+    setSuppliers(sups ?? [])
+    setMaterialTypes(types ?? [])
+    return { cats, brs, locs, sups, types }
+  }, [fetchBrands, fetchCategories, fetchLocations, fetchMaterialTypes, fetchSuppliers])
 
   useEffect(() => {
     load()
@@ -871,52 +922,67 @@ export function AssetsPage() {
       const msg = String(e?.message ?? e)
       toast.error(msg || 'Erreur lors du chargement des emprunts de matériel.')
     })
-    fetchSuppliers()
-      .then(setSuppliers)
-      .catch((e) => {
-        const msg = String(e?.message ?? e)
-        toast.error(msg || 'Erreur lors du chargement des fournisseurs.')
-      })
-    fetchMaterialTypes()
-      .then(setMaterialTypes)
-      .catch((e) => {
-        const msg = String(e?.message ?? e)
-        toast.error(msg || 'Erreur lors du chargement des types de matériel.')
-      })
+    loadReferenceData().catch((e) => {
+      const msg = String(e?.message ?? e)
+      toast.error(msg || 'Erreur lors du chargement des données de référence.')
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
+    if (!drawerOpen && assetEditingId == null) return
+    loadReferenceData().catch((e) => {
+      const msg = String(e?.message ?? e)
+      toast.error(msg || 'Erreur lors du chargement des données de référence.')
+    })
+  }, [assetEditingId, drawerOpen, loadReferenceData])
+
+  useEffect(() => {
+    if (!assignmentDrawerOpen) return
+    Promise.all([fetchDepartments(), listKnownUsersFromAssignmentsService()])
+      .then(([depts, users]) => {
+        setDepartments(depts ?? [])
+        setKnownUsers(users ?? [])
+      })
+      .catch((e) => {
+        const msg = String(e?.message ?? e)
+        toast.error(msg || 'Erreur lors du chargement des affectations.')
+      })
+  }, [assignmentDrawerOpen, fetchDepartments])
+
+  useEffect(() => {
+    if (typeof form.materialTypeId !== 'number') return
     setForm((f) => ({
       ...f,
-      inventoryNumber: nextSequentialInventoryNumber(f.type, allAssets),
+      inventoryNumber: nextInventoryForMaterialTypeId(f.materialTypeId as number, materialTypes, allAssets),
     }))
-  }, [allAssets])
+  }, [allAssets, form.materialTypeId, materialTypes])
 
   async function onCreate(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
 
-    const trimmedForm: AssetCreateFormState = {
+    const trimmedForm = {
       ...form,
       serialNumber: form.serialNumber.trim(),
-      type: form.type.trim(),
-      brand: form.brand.trim(),
       model: form.model.trim(),
       warrantyMonths: form.warrantyMonths.trim(),
-      supplier: form.supplier.trim(),
     }
 
     if (!trimmedForm.inventoryNumber) {
       toast.warning("Le numéro d'inventaire est manquant.")
       return
     }
-    if (!trimmedForm.type) {
+    if (!trimmedForm.categoryId) {
+      toast.warning('Veuillez sélectionner une catégorie.')
+      return
+    }
+    if (!trimmedForm.materialTypeId) {
       toast.warning('Veuillez sélectionner un type de matériel.')
       return
     }
-    if (!trimmedForm.brand) {
-      toast.warning('Veuillez saisir la marque du matériel.')
+    if (!trimmedForm.brandId) {
+      toast.warning('Veuillez sélectionner une marque.')
       return
     }
     if (!trimmedForm.model) {
@@ -927,30 +993,38 @@ export function AssetsPage() {
       toast.warning("Veuillez saisir la date d'entrée.")
       return
     }
-    if (!trimmedForm.supplier) {
+    if (!trimmedForm.supplierId) {
       toast.warning('Veuillez sélectionner un fournisseur.')
       return
     }
 
     try {
-      const parsedWarrantyMonths = Number(trimmedForm.warrantyMonths)
+      const warrantyEndDate = warrantyEndDateFromMonths(trimmedForm.entryDate, trimmedForm.warrantyMonths)
       await createAsset({
-        ...trimmedForm,
+        inventoryNumber: trimmedForm.inventoryNumber,
         serialNumber: trimmedForm.serialNumber || undefined,
-        warrantyMonths:
-          Number.isFinite(parsedWarrantyMonths) && parsedWarrantyMonths > 0 ? parsedWarrantyMonths : undefined,
+        categoryId: Number(trimmedForm.categoryId),
+        materialTypeId: Number(trimmedForm.materialTypeId),
+        brandId: Number(trimmedForm.brandId),
+        supplierId: Number(trimmedForm.supplierId),
+        locationId: trimmedForm.locationId ? Number(trimmedForm.locationId) : undefined,
+        model: trimmedForm.model,
+        entryDate: trimmedForm.entryDate,
+        warrantyStartDate: trimmedForm.warrantyMonths ? trimmedForm.entryDate : undefined,
+        warrantyEndDate,
       })
       toast.success('Matériel ajouté avec succès.')
       const fresh = await loadAllForSeq()
-      setForm((f) => ({
-        ...f,
-        inventoryNumber: nextSequentialInventoryNumber(f.type, fresh),
-        serialNumber: '',
-        brand: '',
-        model: '',
-        warrantyMonths: '',
-        supplier: '',
-      }))
+      const { types } = await loadReferenceData()
+      const defaultTypeId = typeof form.materialTypeId === 'number' ? form.materialTypeId : types?.[0]?.id
+      setForm({
+        ...emptyAssetForm(
+          typeof defaultTypeId === 'number'
+            ? nextInventoryForMaterialTypeId(defaultTypeId, types ?? materialTypes, fresh)
+            : '',
+        ),
+        materialTypeId: defaultTypeId ?? '',
+      })
       setDrawerOpen(false)
       load()
     } catch (err: unknown) {
@@ -963,13 +1037,15 @@ export function AssetsPage() {
   function openEdit(a: Asset) {
     setUpdateForm({
       inventoryNumber: a.inventoryNumber,
-      serialNumber: serialNumberValue(a),
-      type: a.type,
-      brand: a.brand,
+      serialNumber: getSerialNumber(a) === '—' ? '' : getSerialNumber(a),
+      categoryId: a.categoryId,
+      materialTypeId: a.materialTypeId,
+      brandId: a.brandId,
+      supplierId: a.supplierId ?? '',
+      locationId: a.locationId ?? '',
       model: a.model,
       entryDate: a.entryDate.length >= 10 ? a.entryDate.slice(0, 10) : a.entryDate,
-      warrantyMonths: typeof a.warrantyMonths === 'number' ? String(a.warrantyMonths) : '',
-      supplier: a.supplier,
+      warrantyMonths: warrantyMonthsFromAsset(a),
     })
     setAssetEditingId(a.id)
   }
@@ -996,27 +1072,28 @@ export function AssetsPage() {
     if (assetEditingId == null) return
     setError(null)
 
-    const trimmed: AssetCreateFormState = {
+    const trimmed = {
       ...updateForm,
       inventoryNumber: updateForm.inventoryNumber.trim(),
       serialNumber: updateForm.serialNumber.trim(),
-      type: updateForm.type.trim(),
-      brand: updateForm.brand.trim(),
       model: updateForm.model.trim(),
       warrantyMonths: updateForm.warrantyMonths.trim(),
-      supplier: updateForm.supplier.trim(),
     }
 
     if (!trimmed.inventoryNumber) {
       toast.warning("Le numéro d'inventaire est manquant.")
       return
     }
-    if (!trimmed.type) {
+    if (!trimmed.categoryId) {
+      toast.warning('Veuillez sélectionner une catégorie.')
+      return
+    }
+    if (!trimmed.materialTypeId) {
       toast.warning('Veuillez sélectionner un type de matériel.')
       return
     }
-    if (!trimmed.brand) {
-      toast.warning('Veuillez saisir la marque du matériel.')
+    if (!trimmed.brandId) {
+      toast.warning('Veuillez sélectionner une marque.')
       return
     }
     if (!trimmed.model) {
@@ -1027,25 +1104,28 @@ export function AssetsPage() {
       toast.warning("Veuillez saisir la date d'entrée.")
       return
     }
-    if (!trimmed.supplier) {
+    if (!trimmed.supplierId) {
       toast.warning('Veuillez sélectionner un fournisseur.')
       return
     }
 
     try {
-      const parsedWarrantyMonths = Number(trimmed.warrantyMonths)
+      const warrantyEndDate = warrantyEndDateFromMonths(trimmed.entryDate, trimmed.warrantyMonths)
       await updateAsset(assetEditingId, {
-        ...trimmed,
+        inventoryNumber: trimmed.inventoryNumber,
         serialNumber: trimmed.serialNumber || undefined,
-        warrantyMonths:
-          Number.isFinite(parsedWarrantyMonths) && parsedWarrantyMonths > 0 ? parsedWarrantyMonths : undefined,
+        categoryId: Number(trimmed.categoryId),
+        materialTypeId: Number(trimmed.materialTypeId),
+        brandId: Number(trimmed.brandId),
+        supplierId: Number(trimmed.supplierId),
+        locationId: trimmed.locationId ? Number(trimmed.locationId) : undefined,
+        model: trimmed.model,
+        entryDate: trimmed.entryDate,
+        warrantyStartDate: trimmed.warrantyMonths ? trimmed.entryDate : undefined,
+        warrantyEndDate,
       })
       toast.success('Matériel mis à jour.')
-      const fresh = await loadAllForSeq()
-      setForm((f) => ({
-        ...f,
-        inventoryNumber: nextSequentialInventoryNumber(f.type, fresh),
-      }))
+      await loadAllForSeq()
       setAssetEditingId(null)
       load()
     } catch (err: unknown) {
@@ -1057,8 +1137,9 @@ export function AssetsPage() {
 
   function openAssignmentDrawerForAsset(assetId: number) {
     setAssignAssetId(assetId)
-    setAssignDepartment('')
-    setAssignUsers([''])
+    setAssignDepartmentId('')
+    setAssignUserId('')
+    setAssignCustomUserId('')
     setAssignStartDate(new Date().toISOString().slice(0, 10))
     setAssignmentDrawerOpen(true)
   }
@@ -1090,21 +1171,26 @@ export function AssetsPage() {
       toast.warning('Veuillez sélectionner un matériel.')
       return
     }
+    const resolvedUserId = assignUserId.trim() || assignCustomUserId.trim()
+    if (!resolvedUserId) {
+      toast.warning('Veuillez sélectionner ou saisir un utilisateur.')
+      return
+    }
+    if (!assignDepartmentId) {
+      toast.warning('Veuillez sélectionner une direction.')
+      return
+    }
     try {
-      const names = assignUsers.map((u) => u.trim()).filter(Boolean)
-      if (!names.length) {
-        toast.warning('Veuillez saisir au moins un utilisateur.')
-        return
-      }
       await createAssignmentForAsset(Number(assignAssetId), {
-        department: assignDepartment,
-        user: names.length === 1 ? { name: names[0] } : { names },
+        userId: resolvedUserId,
+        departmentId: Number(assignDepartmentId),
         startDate: assignStartDate,
       })
       toast.success('Affectation créée avec succès.')
       setAssignAssetId('')
-      setAssignDepartment('')
-      setAssignUsers([''])
+      setAssignDepartmentId('')
+      setAssignUserId('')
+      setAssignCustomUserId('')
       setAssignStartDate(new Date().toISOString().slice(0, 10))
       setAssignmentDrawerOpen(false)
       await loadAllForSeq()
@@ -1144,7 +1230,7 @@ export function AssetsPage() {
     try {
       await downloadReport('assets', {
         search: q,
-        type,
+        materialTypeId: materialTypeId === '' ? undefined : materialTypeId,
         status,
         ...assetDateRangePrintFilters(entryDateRange),
       })
@@ -1251,11 +1337,14 @@ export function AssetsPage() {
         onClose={() => setDrawerOpen(false)}
         form={form}
         setForm={setForm}
+        categories={categories}
         materialTypes={materialTypes}
+        brands={brands}
         suppliers={suppliers}
+        locations={locations}
         loading={loading}
         onSubmit={onCreate}
-        nextInventoryForType={(materialType) => nextSequentialInventoryNumber(materialType, allAssets)}
+        nextInventoryForMaterialTypeId={(id) => nextInventoryForMaterialTypeId(id, materialTypes, allAssets)}
       />
 
       <DrawerAssetsUpdate
@@ -1263,8 +1352,11 @@ export function AssetsPage() {
         onClose={() => setAssetEditingId(null)}
         form={updateForm}
         setForm={setUpdateForm}
+        categories={categories}
         materialTypes={materialTypes}
+        brands={brands}
         suppliers={suppliers}
+        locations={locations}
         loading={loading}
         onSubmit={onUpdate}
       />
@@ -1273,12 +1365,16 @@ export function AssetsPage() {
         isOpen={assignmentDrawerOpen}
         onClose={() => setAssignmentDrawerOpen(false)}
         assignable={assignable}
+        departments={departments}
+        knownUsers={knownUsers}
         assetId={assignAssetId}
         setAssetId={setAssignAssetId}
-        department={assignDepartment}
-        setDepartment={setAssignDepartment}
-        users={assignUsers}
-        setUsers={setAssignUsers}
+        departmentId={assignDepartmentId}
+        setDepartmentId={setAssignDepartmentId}
+        userId={assignUserId}
+        setUserId={setAssignUserId}
+        customUserId={assignCustomUserId}
+        setCustomUserId={setAssignCustomUserId}
         startDate={assignStartDate}
         setStartDate={setAssignStartDate}
         loading={loading || assignmentLoading}
@@ -1317,11 +1413,15 @@ export function AssetsPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          <Select label="Type" value={type} onChange={(e) => setType(e.target.value)}>
+          <Select
+            label="Type"
+            value={materialTypeId}
+            onChange={(e) => setMaterialTypeId(e.target.value ? Number(e.target.value) : '')}
+          >
             <option value="">Tous</option>
-            {types.map((t) => (
-              <option key={t} value={t}>
-                {t}
+            {materialTypes.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
               </option>
             ))}
           </Select>
@@ -1362,7 +1462,7 @@ export function AssetsPage() {
             <Button
               onClick={() => {
                 setQ('')
-                setType('')
+                setMaterialTypeId('')
                 setStatus('')
                 setEntryDateRange(null)
                 setTimeout(load, 0)
@@ -1394,13 +1494,13 @@ export function AssetsPage() {
               <td className="px-4 py-3 font-medium text-gray-900 text-[13px]">
                 {a.inventoryNumber}
               </td>
-              <td className="px-4 py-3 text-gray-600 text-[13px]">{serialNumberValue(a) || '—'}</td>
-              <td className="px-4 py-3 text-gray-600">{a.type}</td>
-              <td className="px-4 py-3 text-gray-600">{a.brand}</td>
+              <td className="px-4 py-3 text-gray-600 text-[13px]">{getSerialNumber(a)}</td>
+              <td className="px-4 py-3 text-gray-600">{getTypeName(a)}</td>
+              <td className="px-4 py-3 text-gray-600">{getBrandName(a)}</td>
               <td className="px-4 py-3 text-gray-600">{a.model}</td>
               <td className="px-4 py-3 text-gray-600">{formatDate(a.entryDate)}</td>
               <td className="px-4 py-3 text-gray-600 text-[13px]">{warrantyLabel(a)}</td>
-              <td className="px-4 py-3 text-gray-600">{a.supplier}</td>
+              <td className="px-4 py-3 text-gray-600">{getSupplierName(a)}</td>
               <td className="px-4 py-3 text-gray-600">
                 {a.status === 'EN_STOCK_NON_AFFECTE' ? (
                   <span

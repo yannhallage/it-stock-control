@@ -5,6 +5,7 @@ import { useAssets } from '../api/hooks/useAssets'
 import { useIncidents } from '../api/hooks/useIncidents'
 import { useWorkshop } from '../api/hooks/useWorkshop'
 import type { RepairWithRelations } from '../api/services/workshop.service'
+import { formatBrandModel, getBrandName, getDepartmentName, getTypeName } from '../lib/asset-labels'
 import { formatDate } from '../lib/format'
 import type { Asset, Incident } from '../types'
 import { StatusBadge } from '../components/Badge'
@@ -76,13 +77,13 @@ export function WorkshopPage() {
         r.action ?? '',
         repairOutcomeLabel(r.outcome),
         r.status,
-        r.incident?.department ?? '',
+        r.incident ? getDepartmentName(r.incident) : '',
         r.incident?.description ?? '',
         `#${r.incidentId}`,
         asset?.inventoryNumber ?? '',
-        asset?.brand ?? '',
+        getBrandName(asset),
         asset?.model ?? '',
-        asset?.type ?? '',
+        getTypeName(asset),
         formatDate(entryDate) || '',
         formatDate(exitDate) || '',
         entryDate ?? '',
@@ -193,13 +194,13 @@ export function WorkshopPage() {
             return (
               <tr key={r.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-[13px]">
-                  {asset ? `${asset.inventoryNumber} — ${asset.brand} ${asset.model}` : `#${r.incidentId}`}
+                  {asset ? `${asset.inventoryNumber} — ${formatBrandModel(asset)}` : `#${r.incidentId}`}
                 </td>
                 <td className="px-4 py-3 text-[13px]">
                   {asset ? <StatusBadge status={asset.status} /> : '—'}
                 </td>
                 <td className="px-4 py-3 text-gray-600 text-[13px]">
-                  #{r.incidentId} — {incident?.department ?? '—'}
+                  #{r.incidentId} — {incident ? getDepartmentName(incident) : '—'}
                 </td>
                 <td className="px-4 py-3 text-gray-600 text-[13px]">
                   {formatDate(getWorkshopEntryDate(r)) || '—'}

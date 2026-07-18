@@ -5,6 +5,7 @@ import { useAssets } from '../api/hooks/useAssets'
 import { useImpression } from '../api/hooks/useImpression'
 import { useIncidents } from '../api/hooks/useIncidents'
 import { ReportIncidentDrawer } from '../components/drawers/ReportIncidentDrawer'
+import { formatBrandModel, getDepartmentName, getTypeName } from '../lib/asset-labels'
 import { formatDate } from '../lib/format'
 import type { Asset, Incident } from '../types'
 import { Button, Card, PageTitle, Table } from '../components/Ui'
@@ -106,9 +107,9 @@ export function IncidentsPage() {
                   {a?.inventoryNumber ?? `#${it.assetId}`}
                 </td>
                 <td className="px-4 py-3 text-gray-600 text-[13px]">
-                  {a ? `${a.type} — ${a.brand} ${a.model}` : '—'}
+                  {a ? `${getTypeName(a)} — ${formatBrandModel(a)}` : '—'}
                 </td>
-                <td className="px-4 py-3 text-gray-600 text-[13px]">{it.department}</td>
+                <td className="px-4 py-3 text-gray-600 text-[13px]">{getDepartmentName(it)}</td>
                 <td className="px-4 py-3 text-gray-600 text-[13px]">
                   {formatDate(it.reportedAt)}
                 </td>

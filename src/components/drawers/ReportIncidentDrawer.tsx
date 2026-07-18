@@ -2,7 +2,9 @@ import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'react-toastify'
+import { useDepartments } from '../../api/hooks/useDepartments'
 import { useIncidents } from '../../api/hooks/useIncidents'
+import { formatBrandModel, getTypeName } from '../../lib/asset-labels'
 import type { Asset } from '../../types'
 import { Button, Input, Select, Textarea } from '../Ui'
 
@@ -20,10 +22,12 @@ export function ReportIncidentDrawer({ isOpen, onClose, assets, onCreated, initi
   const [mounted, setMounted] = useState(isOpen)
   const [visible, setVisible] = useState(isOpen)
   const [assetId, setAssetId] = useState<number | ''>('')
-  const [department, setDepartment] = useState('')
+  const [departmentId, setDepartmentId] = useState<number | ''>('')
   const [reportedAt, setReportedAt] = useState(new Date().toISOString().slice(0, 10))
   const [description, setDescription] = useState('')
+  const [departments, setDepartments] = useState<Array<{ id: number; name: string }>>([])
   const { createIncidentForAsset, loading } = useIncidents()
+  const { fetchDepartments } = useDepartments()
 
   useEffect(() => {
     if (isOpen) {
@@ -46,12 +50,21 @@ export function ReportIncidentDrawer({ isOpen, onClose, assets, onCreated, initi
     if (!isOpen) return
     const id = window.setTimeout(() => {
       setAssetId(initialAssetId ?? '')
-      setDepartment('')
+      setDepartmentId('')
       setReportedAt(new Date().toISOString().slice(0, 10))
       setDescription('')
     }, 0)
     return () => window.clearTimeout(id)
   }, [isOpen, initialAssetId])
+
+  useEffect(() => {
+    if (!isOpen) return
+    fetchDepartments()
+      .then(setDepartments)
+      .catch(() => {
+        toast.error('Erreur lors du chargement des directions.')
+      })
+  }, [fetchDepartments, isOpen])
 
   useEffect(() => {
     if (!mounted) return
@@ -77,8 +90,16 @@ export function ReportIncidentDrawer({ isOpen, onClose, assets, onCreated, initi
       toast.warning('Veuillez sélectionner un matériel.')
       return
     }
+    if (!departmentId) {
+      toast.warning('Veuillez sélectionner une direction.')
+      return
+    }
     try {
-      await createIncidentForAsset(Number(assetId), { department, reportedAt, description })
+      await createIncidentForAsset(Number(assetId), {
+        departmentId: Number(departmentId),
+        reportedAt,
+        description,
+      })
       toast.success('Panne enregistrée avec succès.')
       onCreated()
       onClose()
@@ -125,15 +146,22 @@ export function ReportIncidentDrawer({ isOpen, onClose, assets, onCreated, initi
                 <option value="">Sélectionner…</option>
                 {assets.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.inventoryNumber} — {a.type} — {a.brand} {a.model}
+                    {a.inventoryNumber} — {getTypeName(a)} — {formatBrandModel(a)}
                   </option>
                 ))}
               </Select>
-              <Input
+              <Select
                 label="Direction concernée"
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-              />
+                value={departmentId}
+                onChange={(e) => setDepartmentId(e.target.value ? Number(e.target.value) : '')}
+              >
+                <option value="">Sélectionner une direction</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </Select>
               <Input
                 label="Date de signalement"
                 type="date"

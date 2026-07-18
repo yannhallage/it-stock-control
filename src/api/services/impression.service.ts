@@ -4,7 +4,7 @@ import type { AssetStatus } from '../../types'
 
 export type AssetsPdfFilters = {
   search?: string
-  type?: string
+  materialTypeId?: number
   status?: AssetStatus | ''
   entryDateFrom?: string
   entryDateTo?: string
@@ -38,7 +38,7 @@ export function downloadAssetsPdfService(filters: AssetsPdfFilters = {}): Promis
   const searchParams = new URLSearchParams()
 
   if (filters.search?.trim()) searchParams.set('search', filters.search.trim())
-  if (filters.type?.trim()) searchParams.set('type', filters.type.trim())
+  if (filters.materialTypeId != null) searchParams.set('materialTypeId', String(filters.materialTypeId))
   if (filters.status) searchParams.set('status', filters.status)
   if (filters.entryDateFrom) searchParams.set('entryDateFrom', filters.entryDateFrom)
   if (filters.entryDateTo) searchParams.set('entryDateTo', filters.entryDateTo)

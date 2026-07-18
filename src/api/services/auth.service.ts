@@ -6,17 +6,18 @@ export type LoginRequest = {
   password: string
 }
 
-// Adapter ce type en fonction de la réponse réelle du backend
 export type LoginResponse = {
   accessToken?: string
+  tokenType?: string
+  expiresIn?: number
   user?: {
-    id: string | number
+    id: string
     email: string
-    name?: string
+    firstName: string
+    lastName: string
   }
 } & Record<string, unknown>
 
 export async function loginService(credentials: LoginRequest): Promise<LoginResponse> {
   return post<LoginRequest, LoginResponse>(ENDPOINTS.auth.login, credentials)
 }
-

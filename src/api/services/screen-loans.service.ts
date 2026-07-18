@@ -11,7 +11,7 @@ export type CreateScreenLoanPayload = {
   assetId: number
   borrowerFirstName: string
   borrowerLastName: string
-  borrowerDepartment?: string
+  departmentId?: number
   loanDate: string
   expectedReturnDate: string
   note?: string

@@ -12,6 +12,12 @@ import { MachinesStatsPage } from './pages/MachinesStats'
 import { AssetDetailsPage } from './pages/AssetDetails'
 import { SuppliersPage } from './pages/Suppliers'
 import { MaterialTypesPage } from './pages/MaterialTypes'
+import { DepartmentsPage } from './pages/Departments'
+import { CategoriesPage } from './pages/Categories'
+import { BrandsPage } from './pages/Brands'
+import { LocationsPage } from './pages/Locations'
+import { MaintenancesPage } from './pages/Maintenances'
+import { MovementsPage } from './pages/Movements'
 
 function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -42,6 +48,12 @@ export default function App() {
               <Route path="/statistiques-machines" element={<MachinesStatsPage />} />
               <Route path="/fournisseurs" element={<SuppliersPage />} />
               <Route path="/types-materiel" element={<MaterialTypesPage />} />
+              <Route path="/departements" element={<DepartmentsPage />} />
+              <Route path="/categories" element={<CategoriesPage />} />
+              <Route path="/marques" element={<BrandsPage />} />
+              <Route path="/emplacements" element={<LocationsPage />} />
+              <Route path="/maintenances" element={<MaintenancesPage />} />
+              <Route path="/mouvements" element={<MovementsPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ProtectedLayout>

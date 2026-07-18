@@ -39,6 +39,57 @@ body {
   color: #111827;
 }
 
+/* Scrollbars fins (neutres, taille réduite uniquement) */
+.scrollbar-app {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.scrollbar-app::-webkit-scrollbar {
+  height: 4px;
+  width: 4px;
+}
+
+.scrollbar-app::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-app::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}
+
+.scrollbar-app::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.scrollbar-app::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.scrollbar-tabs {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+  padding-bottom: 2px;
+}
+
+.scrollbar-tabs::-webkit-scrollbar {
+  height: 3px;
+}
+
+.scrollbar-tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-tabs::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}
+
+.scrollbar-tabs::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
 @keyframes clipLoaderSpin {
   to {
     transform: rotate(360deg);

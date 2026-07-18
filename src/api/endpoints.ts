@@ -8,43 +8,51 @@ const API_BASE_URL =
 
 export const ENDPOINTS = {
   auth: {
-    // Correspond à @Controller('auth') + @Post('login')
     login: '/api/auth/login',
   },
   assets: {
-    // Routing du module de gestion des stocks (assets)
-    // Correspond à app.use('/api/assets', stocksModule.router);
     base: '/api/assets',
   },
   suppliers: {
-    // Routing du module de gestion des fournisseurs
-    // Correspond à app.use('/api/suppliers', suppliersModule.router);
     base: '/api/suppliers',
   },
   materialTypes: {
-    // Routing du module de gestion des types de matériel
-    // Correspond à app.use('/api/material-types', materialTypesModule.router);
     base: '/api/material-types',
   },
+  departments: {
+    base: '/api/departments',
+  },
+  categories: {
+    base: '/api/categories',
+  },
+  brands: {
+    base: '/api/brands',
+  },
+  locations: {
+    base: '/api/locations',
+  },
+  maintenances: {
+    base: '/api/maintenances',
+  },
+  attachments: {
+    base: '/api/attachments',
+  },
+  movements: {
+    base: '/api/movements',
+  },
   assignments: {
-    // Routing du module des affectations
-    // Correspond à app.use('/api', assignmentsModule.router) avec préfixe /assignments
     base: '/api/assignments',
   },
   incidents: {
-    // Routing du module des incidents (pannes)
     base: '/api/incidents',
   },
   workshop: {
-    // Atelier : réparations
     base: '/api/atelier/repairs',
   },
   screenLoans: {
-    // Gestion des emprunts de matériel
     base: '/api/screen-loans',
   },
   impression: {
-    // Impression des rapports PDF
     assets: '/api/impression/printAssets',
     asset: '/api/impression/printAsset',
     assignments: '/api/impression/printAssigment',
@@ -56,13 +64,7 @@ export const ENDPOINTS = {
   dashboard: '/api/dashboard',
 } as const
 
-
 export function buildUrl(path: string): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
   return `${API_BASE_URL}${normalizedPath}`
 }
-
-export type EndpointPath = {
-  [K in keyof typeof ENDPOINTS]: (typeof ENDPOINTS)[K][keyof (typeof ENDPOINTS)[K]]
-}[keyof typeof ENDPOINTS]
-

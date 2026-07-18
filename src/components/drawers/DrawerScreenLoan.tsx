@@ -2,7 +2,9 @@ import type { FormEvent } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'react-toastify'
+import { useDepartments } from '../../api/hooks/useDepartments'
 import type { CreateScreenLoanPayload } from '../../api/services/screen-loans.service'
+import { formatBrandModel } from '../../lib/asset-labels'
 import type { Asset } from '../../types'
 import { Button, Input, Select, Textarea } from '../Ui'
 
@@ -19,7 +21,7 @@ type DrawerScreenLoanProps = {
 const ANIMATION_MS = 220
 
 function assetLabel(asset: Asset) {
-  return `${asset.inventoryNumber} - ${asset.brand} ${asset.model}`
+  return `${asset.inventoryNumber} - ${formatBrandModel(asset)}`
 }
 
 export function DrawerScreenLoan({
@@ -37,10 +39,12 @@ export function DrawerScreenLoan({
   const [assetId, setAssetId] = useState<number | ''>('')
   const [borrowerLastName, setBorrowerLastName] = useState('')
   const [borrowerFirstName, setBorrowerFirstName] = useState('')
-  const [borrowerDepartment, setBorrowerDepartment] = useState('')
+  const [departmentId, setDepartmentId] = useState<number | ''>('')
   const [loanDate, setLoanDate] = useState(new Date().toISOString().slice(0, 10))
   const [expectedReturnDate, setExpectedReturnDate] = useState(new Date().toISOString().slice(0, 10))
   const [note, setNote] = useState('')
+  const [departments, setDepartments] = useState<Array<{ id: number; name: string }>>([])
+  const { fetchDepartments } = useDepartments()
 
   const availableAssets = useMemo(
     () =>
@@ -65,12 +69,21 @@ export function DrawerScreenLoan({
 
   useEffect(() => {
     if (!isOpen) return
+    fetchDepartments()
+      .then(setDepartments)
+      .catch(() => {
+        toast.error('Erreur lors du chargement des directions.')
+      })
+  }, [fetchDepartments, isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
     const selectedAssetId =
       initialAssetId && availableAssets.some((asset) => asset.id === initialAssetId) ? initialAssetId : ''
     setAssetId(selectedAssetId)
     setBorrowerLastName('')
     setBorrowerFirstName('')
-    setBorrowerDepartment('')
+    setDepartmentId('')
     const today = new Date().toISOString().slice(0, 10)
     setLoanDate(today)
     setExpectedReturnDate(today)
@@ -124,7 +137,7 @@ export function DrawerScreenLoan({
         assetId: Number(assetId),
         borrowerLastName: borrowerLastName.trim(),
         borrowerFirstName: borrowerFirstName.trim(),
-        borrowerDepartment: borrowerDepartment.trim() || undefined,
+        departmentId: departmentId ? Number(departmentId) : undefined,
         loanDate,
         expectedReturnDate,
         note: note.trim() || undefined,
@@ -207,12 +220,19 @@ export function DrawerScreenLoan({
                 onChange={(e) => setBorrowerFirstName(e.target.value)}
                 disabled={submitting}
               />
-              <Input
-                label="Direction / service"
-                value={borrowerDepartment}
-                onChange={(e) => setBorrowerDepartment(e.target.value)}
+              <Select
+                label="Direction / service (optionnel)"
+                value={departmentId}
+                onChange={(e) => setDepartmentId(e.target.value ? Number(e.target.value) : '')}
                 disabled={submitting}
-              />
+              >
+                <option value="">Aucune direction</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </Select>
               <Input
                 label="Date de prêt"
                 type="date"
