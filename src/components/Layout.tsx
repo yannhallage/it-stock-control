@@ -310,7 +310,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
             */}
             {/* Nouveau blason de la Côte d'Ivoire */}
             <img
-              src="https://www.assnat.ci/imgsite/logo-anci4.png"
+              src="https://chatgpt.com/backend-api/estuary/content?id=file_0000000098d481f48defb1ed296e35b5&ts=495864&p=fs&cid=1&sig=98debbfc377929dd8c1ab9b2504edefc3dc27df099a81459734f994446d41dc6&v=0"
+              {/* src="https://www.assnat.ci/imgsite/logo-anci4.png" */}
               alt="Blason de la Côte d'Ivoire"
               className="h-8 w-8 object-contain"
               style={{ maxHeight: 32, maxWidth: 32 }}
