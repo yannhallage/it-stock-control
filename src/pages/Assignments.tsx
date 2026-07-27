@@ -59,7 +59,7 @@ export function AssignmentsPage() {
   } = useAssignments()
   const { fetchDepartments } = useDepartments()
   const { fetchEmployees } = useEmployees()
-  const { downloadAssignmentReport, loading: printLoading, error: printError } = useImpression()
+  const { downloadAssignmentReport, downloadReport, loading: printLoading, error: printError } = useImpression()
 
   const loading = assetsLoading || assignmentsLoading
 
@@ -181,6 +181,21 @@ export function AssignmentsPage() {
             disabled={loading}
           >
             Transférer / affecter
+          </Button>
+          <Button
+            type="button"
+            onClick={async () => {
+              try {
+                await downloadReport('assignments')
+                toast.success('PDF des affectations téléchargé.')
+              } catch {
+                toast.error("Erreur lors de l'impression des affectations.")
+              }
+            }}
+            className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
+            disabled={loading || printLoading}
+          >
+            Imprimer tout
           </Button>
           <Button onClick={load} className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" disabled={loading}>
             Actualiser
