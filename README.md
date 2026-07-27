@@ -31,7 +31,7 @@ src/types.ts        # types alignés sur le schéma Prisma normalisé
 | Domaine | Create |
 |---------|--------|
 | Asset | `categoryId`, `materialTypeId`, `brandId`, `supplierId?`, `locationId?`, `model`, `entryDate` |
-| Assignment | `userId`, `departmentId`, `startDate`, `note?` |
+| Assignment | `employeeId`, `departmentId`, `startDate`, `note?` |
 | Incident | `description`, `reportedAt`, `departmentId` |
 | ScreenLoan | `assetId`, prénom/nom, `departmentId?`, dates |
 

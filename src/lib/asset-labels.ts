@@ -1,4 +1,4 @@
-import type { Asset, Assignment, AssignmentUser, Incident, Ref, ScreenLoan } from '../types'
+import type { Asset, Assignment, AssignmentEmployee, Incident, Ref, ScreenLoan } from '../types'
 
 export function getRefName(ref?: Ref | null): string {
   return ref?.name ?? '—'
@@ -28,10 +28,15 @@ export function getSerialNumber(asset?: Pick<Asset, 'serialNumber'> | null): str
   return asset?.serialNumber?.trim() || '—'
 }
 
-export function formatUserName(user?: AssignmentUser | null): string {
-  if (!user) return '—'
-  const full = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()
-  return full || user.email || '—'
+export function formatEmployeeName(employee?: AssignmentEmployee | null): string {
+  if (!employee) return '—'
+  const full = `${employee.firstName ?? ''} ${employee.lastName ?? ''}`.trim()
+  return full || employee.email || '—'
+}
+
+/** @deprecated Use formatEmployeeName */
+export function formatUserName(user?: AssignmentEmployee | null): string {
+  return formatEmployeeName(user)
 }
 
 export function getDepartmentName(

@@ -9,17 +9,18 @@ import { useAssignments } from '../api/hooks/useAssignments'
 import { useBrands } from '../api/hooks/useBrands'
 import { useCategories } from '../api/hooks/useCategories'
 import { useDepartments } from '../api/hooks/useDepartments'
+import { useEmployees } from '../api/hooks/useEmployees'
 import { useImpression } from '../api/hooks/useImpression'
 import { useLocations } from '../api/hooks/useLocations'
 import { useScreenLoans } from '../api/hooks/useScreenLoans'
 import { useSuppliers } from '../api/hooks/useSuppliers'
 import { useMaterialTypes } from '../api/hooks/useMaterialTypes'
-import { listKnownUsersFromAssignmentsService } from '../api/services/assignments.service'
 import type { Brand } from '../api/services/brands.service'
 import type { Category } from '../api/services/categories.service'
+import type { Employee } from '../api/services/employees.service'
 import type { Location } from '../api/services/locations.service'
 import {
-  formatUserName,
+  formatEmployeeName,
   getBrandName,
   getDepartmentName,
   getSerialNumber,
@@ -229,9 +230,9 @@ function assetMatchesDateRange(asset: Asset, value: CalendarFilterValue): boolea
   return time >= range.start.getTime() && time <= range.end.getTime()
 }
 
-function assignmentUsersLabel(assignment: Assignment | null | undefined): string {
+function assignmentEmployeeLabel(assignment: Assignment | null | undefined): string {
   if (!assignment) return '—'
-  return formatUserName(assignment.user)
+  return formatEmployeeName(assignment.employee)
 }
 
 /** Prochain numéro du type `PC0002`, `PC00303` (préfixe + suite numérique). */
@@ -450,7 +451,7 @@ function AssetPreviewModal({
   error: string | null
 }) {
   const assignment = asset?.currentAssignment ?? null
-  const assignmentUsers = assignment ? assignmentUsersLabel(assignment) : ''
+  const assignmentUsers = assignment ? assignmentEmployeeLabel(assignment) : ''
 
   return (
     <Modal
@@ -814,11 +815,11 @@ export function AssetsPage() {
   const [assignmentDrawerOpen, setAssignmentDrawerOpen] = useState(false)
   const [assignAssetId, setAssignAssetId] = useState<number | ''>('')
   const [assignDepartmentId, setAssignDepartmentId] = useState<number | ''>('')
-  const [assignUserId, setAssignUserId] = useState('')
-  const [assignCustomUserId, setAssignCustomUserId] = useState('')
+  const [assignEmployeeId, setAssignEmployeeId] = useState('')
+  const [assignCustomEmployeeId, setAssignCustomEmployeeId] = useState('')
   const [assignStartDate, setAssignStartDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [departments, setDepartments] = useState<Array<{ id: number; name: string }>>([])
-  const [knownUsers, setKnownUsers] = useState<Array<{ id: string; firstName: string; lastName: string; email: string }>>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
 
   const [assetEditingId, setAssetEditingId] = useState<number | null>(null)
   const [updateForm, setUpdateForm] = useState<AssetCreateFormState>(() => emptyAssetForm())
@@ -838,6 +839,7 @@ export function AssetsPage() {
   const { fetchBrands } = useBrands()
   const { fetchLocations } = useLocations()
   const { fetchDepartments } = useDepartments()
+  const { fetchEmployees } = useEmployees()
 
   const loadAllForSeq = useCallback(async () => {
     const assets = await fetchAssets({})
@@ -944,16 +946,16 @@ export function AssetsPage() {
 
   useEffect(() => {
     if (!assignmentDrawerOpen) return
-    Promise.all([fetchDepartments(), listKnownUsersFromAssignmentsService()])
-      .then(([depts, users]) => {
+    Promise.all([fetchDepartments(), fetchEmployees()])
+      .then(([depts, emps]) => {
         setDepartments(depts ?? [])
-        setKnownUsers(users ?? [])
+        setEmployees(emps ?? [])
       })
       .catch((e) => {
         const msg = String(e?.message ?? e)
         toast.error(msg || 'Erreur lors du chargement des affectations.')
       })
-  }, [assignmentDrawerOpen, fetchDepartments])
+  }, [assignmentDrawerOpen, fetchDepartments, fetchEmployees])
 
   useEffect(() => {
     if (typeof form.materialTypeId !== 'number') return
@@ -1143,8 +1145,8 @@ export function AssetsPage() {
   function openAssignmentDrawerForAsset(assetId: number) {
     setAssignAssetId(assetId)
     setAssignDepartmentId('')
-    setAssignUserId('')
-    setAssignCustomUserId('')
+    setAssignEmployeeId('')
+    setAssignCustomEmployeeId('')
     setAssignStartDate(new Date().toISOString().slice(0, 10))
     setAssignmentDrawerOpen(true)
   }
@@ -1176,9 +1178,9 @@ export function AssetsPage() {
       toast.warning('Veuillez sélectionner un matériel.')
       return
     }
-    const resolvedUserId = assignUserId.trim() || assignCustomUserId.trim()
-    if (!resolvedUserId) {
-      toast.warning('Veuillez sélectionner ou saisir un utilisateur.')
+    const resolvedEmployeeId = assignEmployeeId.trim() || assignCustomEmployeeId.trim()
+    if (!resolvedEmployeeId) {
+      toast.warning('Veuillez sélectionner ou saisir un employé.')
       return
     }
     if (!assignDepartmentId) {
@@ -1187,15 +1189,15 @@ export function AssetsPage() {
     }
     try {
       await createAssignmentForAsset(Number(assignAssetId), {
-        userId: resolvedUserId,
+        employeeId: resolvedEmployeeId,
         departmentId: Number(assignDepartmentId),
         startDate: assignStartDate,
       })
       toast.success('Affectation créée avec succès.')
       setAssignAssetId('')
       setAssignDepartmentId('')
-      setAssignUserId('')
-      setAssignCustomUserId('')
+      setAssignEmployeeId('')
+      setAssignCustomEmployeeId('')
       setAssignStartDate(new Date().toISOString().slice(0, 10))
       setAssignmentDrawerOpen(false)
       await loadAllForSeq()
@@ -1371,15 +1373,15 @@ export function AssetsPage() {
         onClose={() => setAssignmentDrawerOpen(false)}
         assignable={assignable}
         departments={departments}
-        knownUsers={knownUsers}
+        employees={employees}
         assetId={assignAssetId}
         setAssetId={setAssignAssetId}
         departmentId={assignDepartmentId}
         setDepartmentId={setAssignDepartmentId}
-        userId={assignUserId}
-        setUserId={setAssignUserId}
-        customUserId={assignCustomUserId}
-        setCustomUserId={setAssignCustomUserId}
+        employeeId={assignEmployeeId}
+        setEmployeeId={setAssignEmployeeId}
+        customEmployeeId={assignCustomEmployeeId}
+        setCustomEmployeeId={setAssignCustomEmployeeId}
         startDate={assignStartDate}
         setStartDate={setAssignStartDate}
         loading={loading || assignmentLoading}
@@ -1519,7 +1521,7 @@ export function AssetsPage() {
               <td className="px-4 py-3 text-gray-600">{getBrandName(a)}</td>
               <td className="px-4 py-3 text-gray-600">{a.model}</td>
               <td className="px-4 py-3 text-gray-600 text-[13px]">
-                {a.currentAssignment ? formatUserName(a.currentAssignment.user) : '—'}
+                {a.currentAssignment ? formatEmployeeName(a.currentAssignment.employee) : '—'}
               </td>
               <td className="px-4 py-3 text-gray-600 text-[13px]">
                 {a.currentAssignment ? getDepartmentName(a.currentAssignment) : '—'}

@@ -4,12 +4,13 @@ import { BeatLoader } from 'react-spinners'
 import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
 import { useDepartments } from '../api/hooks/useDepartments'
+import { useEmployees } from '../api/hooks/useEmployees'
 import { useImpression } from '../api/hooks/useImpression'
 import { useMaterialTypes } from '../api/hooks/useMaterialTypes'
-import { listKnownUsersFromAssignmentsService } from '../api/services/assignments.service'
 import type { ListAssetsParams } from '../api/services/assets.service'
+import type { Employee } from '../api/services/employees.service'
 import {
-  formatUserName,
+  formatEmployeeName,
   getBrandName,
   getDepartmentName,
   getTypeName,
@@ -18,7 +19,6 @@ import { formatDate } from '../lib/format'
 import type {
   Asset,
   AssetStatus,
-  AssignmentUser,
   InventoryColumnKey,
   InventorySummary,
 } from '../types'
@@ -80,9 +80,9 @@ function cellValue(asset: Asset, key: InventoryColumnKey): string {
     case 'brandModel':
       return `${getBrandName(asset)} / ${asset.model}`
     case 'firstName':
-      return assignment?.user?.firstName ?? '—'
+      return assignment?.employee?.firstName ?? '—'
     case 'lastName':
-      return assignment?.user?.lastName ?? '—'
+      return assignment?.employee?.lastName ?? '—'
     case 'direction':
       return assignment ? getDepartmentName(assignment) : '—'
     case 'status':
@@ -131,11 +131,11 @@ export function InventoryPage() {
   const [summary, setSummary] = useState<InventorySummary | null>(null)
   const [materialTypes, setMaterialTypes] = useState<Array<{ id: number; name: string }>>([])
   const [departments, setDepartments] = useState<Array<{ id: number; name: string }>>([])
-  const [knownUsers, setKnownUsers] = useState<AssignmentUser[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
   const [selectedTypeIds, setSelectedTypeIds] = useState<number[]>([])
   const [columns, setColumns] = useState<InventoryColumnKey[]>(DEFAULT_COLUMNS)
   const [departmentId, setDepartmentId] = useState<number | ''>('')
-  const [userId, setUserId] = useState('')
+  const [employeeId, setEmployeeId] = useState('')
   const [status, setStatus] = useState<AssetStatus | ''>('')
   const [search, setSearch] = useState('')
   const [warrantyExpired, setWarrantyExpired] = useState(false)
@@ -152,6 +152,7 @@ export function InventoryPage() {
   } = useAssets()
   const { fetchMaterialTypes } = useMaterialTypes()
   const { fetchDepartments } = useDepartments()
+  const { fetchEmployees } = useEmployees()
   const {
     downloadInventoryReport,
     downloadSignaleticReport,
@@ -164,7 +165,7 @@ export function InventoryPage() {
       q: search.trim() || undefined,
       status: status || undefined,
       departmentId: departmentId === '' ? undefined : departmentId,
-      userId: userId || undefined,
+      employeeId: employeeId || undefined,
       materialTypeIds: selectedTypeIds.length > 0 ? selectedTypeIds : undefined,
       warrantyExpired: warrantyExpired || undefined,
       minAgeYears: minAgeYears === '' ? undefined : minAgeYears,
@@ -172,12 +173,12 @@ export function InventoryPage() {
     }
   }, [
     departmentId,
+    employeeId,
     minAgeYears,
     physicalPendingOnly,
     search,
     selectedTypeIds,
     status,
-    userId,
     warrantyExpired,
   ])
 
@@ -202,15 +203,15 @@ export function InventoryPage() {
     Promise.all([
       fetchMaterialTypes(),
       fetchDepartments(),
-      listKnownUsersFromAssignmentsService(),
+      fetchEmployees(),
     ])
-      .then(([types, depts, users]) => {
+      .then(([types, depts, emps]) => {
         setMaterialTypes(types ?? [])
         setDepartments(depts ?? [])
-        setKnownUsers(users ?? [])
+        setEmployees(emps ?? [])
       })
       .catch(() => toast.error('Erreur chargement référentiels inventaire.'))
-  }, [fetchDepartments, fetchMaterialTypes])
+  }, [fetchDepartments, fetchEmployees, fetchMaterialTypes])
 
   useEffect(() => {
     const dept = searchParams.get('departmentId')
@@ -251,7 +252,7 @@ export function InventoryPage() {
   }, [
     selectedTypeIds,
     departmentId,
-    userId,
+    employeeId,
     status,
     warrantyExpired,
     minAgeYears,
@@ -292,7 +293,7 @@ export function InventoryPage() {
   function resetFilters() {
     setSelectedTypeIds([])
     setDepartmentId('')
-    setUserId('')
+    setEmployeeId('')
     setStatus('')
     setSearch('')
     setWarrantyExpired(false)
@@ -503,14 +504,14 @@ export function InventoryPage() {
               ))}
             </Select>
             <Select
-              label="Utilisateur"
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
+              label="Employé"
+              value={employeeId}
+              onChange={(e) => setEmployeeId(e.target.value)}
             >
               <option value="">Tous</option>
-              {knownUsers.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {formatUserName(u)}
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {formatEmployeeName(employee)}
                 </option>
               ))}
             </Select>

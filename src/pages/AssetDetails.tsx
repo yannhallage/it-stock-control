@@ -5,7 +5,7 @@ import { ClipLoader } from 'react-spinners'
 import { getAssetByIdService } from '../api/services/assets.service'
 import {
   formatBrandModel,
-  formatUserName,
+  formatEmployeeName,
   getBrandName,
   getDepartmentName,
   getSupplierName,
@@ -127,8 +127,10 @@ const HISTORY_PAYLOAD_LABELS: Record<string, string> = {
   assignmentId: 'N° d\'affectation',
   department: 'Service',
   departmentId: 'Service',
-  userId: 'Utilisateur',
-  user: 'Utilisateur',
+  employeeId: 'Employé',
+  employee: 'Employé',
+  userId: 'Employé',
+  user: 'Employé',
   startDate: 'Date de début',
   endDate: 'Date de fin',
   repairId: 'N° de réparation',
@@ -166,8 +168,8 @@ function formatHistoryEntry(key: string, value: unknown): string {
   return formatHistoryPayloadValue(value)
 }
 
-function formatAssignmentUser(user: Assignment['user']): string {
-  return formatUserName(user)
+function formatAssignmentEmployee(employee: Assignment['employee']): string {
+  return formatEmployeeName(employee)
 }
 
 function formatHistoryPayloadValue(value: unknown): string {
@@ -511,7 +513,7 @@ export function AssetDetailsPage() {
           <Card title="Affectation actuelle">
             {data.currentAssignment ? (
               <div className="text-sm text-slate-900">
-                <b>{getDepartmentName(data.currentAssignment)}</b> - {formatAssignmentUser(data.currentAssignment.user)} (depuis{' '}
+                <b>{getDepartmentName(data.currentAssignment)}</b> - {formatAssignmentEmployee(data.currentAssignment.employee)} (depuis{' '}
                 {formatDate(data.currentAssignment.startDate)})
               </div>
             ) : (
