@@ -2,8 +2,9 @@ import type { Dispatch, FormEvent, SetStateAction } from 'react'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Department } from '../../api/services/departments.service'
-import { formatBrandModel, getTypeName } from '../../lib/asset-labels'
-import type { Asset, AssignmentUser } from '../../types'
+import type { Employee } from '../../api/services/employees.service'
+import { formatBrandModel, formatEmployeeName, getTypeName } from '../../lib/asset-labels'
+import type { Asset } from '../../types'
 import { Button, Input, Select } from '../Ui'
 
 type AssignableAsset = Pick<Asset, 'id' | 'inventoryNumber' | 'model'> & {
@@ -16,15 +17,15 @@ type DrawerAssignmentsProps = {
   onClose: () => void
   assignable: AssignableAsset[]
   departments: Department[]
-  knownUsers: AssignmentUser[]
+  employees: Employee[]
   assetId: number | ''
   setAssetId: Dispatch<SetStateAction<number | ''>>
   departmentId: number | ''
   setDepartmentId: Dispatch<SetStateAction<number | ''>>
-  userId: string
-  setUserId: Dispatch<SetStateAction<string>>
-  customUserId: string
-  setCustomUserId: Dispatch<SetStateAction<string>>
+  employeeId: string
+  setEmployeeId: Dispatch<SetStateAction<string>>
+  customEmployeeId: string
+  setCustomEmployeeId: Dispatch<SetStateAction<string>>
   startDate: string
   setStartDate: Dispatch<SetStateAction<string>>
   loading: boolean
@@ -38,15 +39,15 @@ export function DrawerAssignments({
   onClose,
   assignable,
   departments,
-  knownUsers,
+  employees,
   assetId,
   setAssetId,
   departmentId,
   setDepartmentId,
-  userId,
-  setUserId,
-  customUserId,
-  setCustomUserId,
+  employeeId,
+  setEmployeeId,
+  customEmployeeId,
+  setCustomEmployeeId,
   startDate,
   setStartDate,
   loading,
@@ -150,30 +151,30 @@ export function DrawerAssignments({
                 <Input label="Date début" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
                 <Select
                   className="md:col-span-2"
-                  label="Utilisateur connu"
-                  value={userId}
+                  label="Employé"
+                  value={employeeId}
                   onChange={(e) => {
-                    setUserId(e.target.value)
-                    if (e.target.value) setCustomUserId('')
+                    setEmployeeId(e.target.value)
+                    if (e.target.value) setCustomEmployeeId('')
                   }}
                 >
-                  <option value="">Sélectionner un utilisateur…</option>
-                  {knownUsers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {`${u.firstName} ${u.lastName}`.trim() || u.email}
+                  <option value="">Sélectionner un employé…</option>
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {formatEmployeeName(employee)}
                     </option>
                   ))}
                 </Select>
                 <Input
                   className="md:col-span-2"
-                  label="Identifiant utilisateur (optionnel)"
-                  placeholder="CUID si l'utilisateur n'est pas dans la liste"
-                  value={customUserId}
+                  label="Identifiant employé (optionnel)"
+                  placeholder="CUID si l'employé n'est pas dans la liste"
+                  value={customEmployeeId}
                   onChange={(e) => {
-                    setCustomUserId(e.target.value)
-                    if (e.target.value.trim()) setUserId('')
+                    setCustomEmployeeId(e.target.value)
+                    if (e.target.value.trim()) setEmployeeId('')
                   }}
-                  disabled={Boolean(userId)}
+                  disabled={Boolean(employeeId)}
                 />
                 <p className="md:col-span-2 text-xs text-slate-600">
                   Une nouvelle affectation clôt automatiquement l'affectation active précédente (si existante).

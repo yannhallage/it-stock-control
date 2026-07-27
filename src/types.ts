@@ -12,12 +12,15 @@ export type Ref = {
   name: string
 }
 
-export type AssignmentUser = {
+export type AssignmentEmployee = {
   id: string
   firstName: string
   lastName: string
-  email: string
+  email?: string | null
 }
+
+/** @deprecated Use AssignmentEmployee */
+export type AssignmentUser = AssignmentEmployee
 
 export type Asset = {
   id: number
@@ -77,9 +80,9 @@ export type InventoryColumnKey =
 export type Assignment = {
   id: number
   assetId: number
-  userId: string
+  employeeId: string
   departmentId: number
-  user?: AssignmentUser
+  employee?: AssignmentEmployee
   department?: Ref
   startDate: string
   endDate: string | null

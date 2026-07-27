@@ -6,7 +6,7 @@ export type ListAssetsParams = {
   q?: string
   status?: AssetStatus | ''
   departmentId?: number
-  userId?: string
+  employeeId?: string
   materialTypeId?: number
   materialTypeIds?: number[]
   categoryId?: number
@@ -53,7 +53,7 @@ function buildAssetsQuery(params: ListAssetsParams = {}): string {
   if (params.q) searchParams.set('search', params.q)
   if (params.status) searchParams.set('status', params.status)
   if (params.departmentId != null) searchParams.set('departmentId', String(params.departmentId))
-  if (params.userId) searchParams.set('userId', params.userId)
+  if (params.employeeId) searchParams.set('employeeId', params.employeeId)
   if (params.materialTypeId != null) searchParams.set('materialTypeId', String(params.materialTypeId))
   if (params.materialTypeIds?.length) {
     for (const id of params.materialTypeIds) {

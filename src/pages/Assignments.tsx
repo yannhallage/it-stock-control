@@ -5,16 +5,17 @@ import { toast } from 'react-toastify'
 import { useAssets } from '../api/hooks/useAssets'
 import { useAssignments } from '../api/hooks/useAssignments'
 import { useDepartments } from '../api/hooks/useDepartments'
+import { useEmployees } from '../api/hooks/useEmployees'
 import { useImpression } from '../api/hooks/useImpression'
-import { listKnownUsersFromAssignmentsService } from '../api/services/assignments.service'
+import type { Employee } from '../api/services/employees.service'
 import {
   formatBrandModel,
-  formatUserName,
+  formatEmployeeName,
   getDepartmentName,
   getTypeName,
 } from '../lib/asset-labels'
 import { formatDate } from '../lib/format'
-import type { Asset, Assignment, AssignmentUser } from '../types'
+import type { Asset, Assignment } from '../types'
 import { StatusBadge } from '../components/Badge'
 import { DrawerAssignments } from '../components/drawers/DrawerAssignments'
 import { IncidentDrawer } from '../components/drawers/IncidentDrawer'
@@ -34,13 +35,13 @@ export function AssignmentsPage() {
   const [items, setItems] = useState<AssetRow[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [departments, setDepartments] = useState<Array<{ id: number; name: string }>>([])
-  const [knownUsers, setKnownUsers] = useState<AssignmentUser[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const [assetId, setAssetId] = useState<number | ''>('')
   const [departmentId, setDepartmentId] = useState<number | ''>('')
-  const [userId, setUserId] = useState('')
-  const [customUserId, setCustomUserId] = useState('')
+  const [employeeId, setEmployeeId] = useState('')
+  const [customEmployeeId, setCustomEmployeeId] = useState('')
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
   const [statusFilter, setStatusFilter] = useState<'' | Asset['status']>('')
   const [departmentFilter, setDepartmentFilter] = useState<number | ''>('')
@@ -57,7 +58,8 @@ export function AssignmentsPage() {
     error: apiError,
   } = useAssignments()
   const { fetchDepartments } = useDepartments()
-  const { downloadAssignmentReport, loading: printLoading, error: printError } = useImpression()
+  const { fetchEmployees } = useEmployees()
+  const { downloadAssignmentReport, downloadReport, loading: printLoading, error: printError } = useImpression()
 
   const loading = assetsLoading || assignmentsLoading
 
@@ -91,10 +93,10 @@ export function AssignmentsPage() {
 
   useEffect(() => {
     load()
-    Promise.all([fetchDepartments(), listKnownUsersFromAssignmentsService()])
-      .then(([depts, users]) => {
+    Promise.all([fetchDepartments(), fetchEmployees()])
+      .then(([depts, emps]) => {
         setDepartments(depts ?? [])
-        setKnownUsers(users ?? [])
+        setEmployees(emps ?? [])
       })
       .catch((e) => {
         const msg = String(e?.message ?? e)
@@ -105,16 +107,16 @@ export function AssignmentsPage() {
 
   useEffect(() => {
     if (!assignmentDrawerOpen) return
-    Promise.all([fetchDepartments(), listKnownUsersFromAssignmentsService()])
-      .then(([depts, users]) => {
+    Promise.all([fetchDepartments(), fetchEmployees()])
+      .then(([depts, emps]) => {
         setDepartments(depts ?? [])
-        setKnownUsers(users ?? [])
+        setEmployees(emps ?? [])
       })
       .catch((e) => {
         const msg = String(e?.message ?? e)
         toast.error(msg || 'Erreur lors du chargement des données d\'affectation.')
       })
-  }, [assignmentDrawerOpen, fetchDepartments])
+  }, [assignmentDrawerOpen, fetchDepartments, fetchEmployees])
 
   async function createAssignment(e: React.FormEvent) {
     e.preventDefault()
@@ -123,9 +125,9 @@ export function AssignmentsPage() {
       toast.warning('Veuillez sélectionner un matériel.')
       return
     }
-    const resolvedUserId = userId.trim() || customUserId.trim()
-    if (!resolvedUserId) {
-      toast.warning('Veuillez sélectionner ou saisir un utilisateur.')
+    const resolvedEmployeeId = employeeId.trim() || customEmployeeId.trim()
+    if (!resolvedEmployeeId) {
+      toast.warning('Veuillez sélectionner ou saisir un employé.')
       return
     }
     if (!departmentId) {
@@ -134,15 +136,15 @@ export function AssignmentsPage() {
     }
     try {
       await createAssignmentForAsset(Number(assetId), {
-        userId: resolvedUserId,
+        employeeId: resolvedEmployeeId,
         departmentId: Number(departmentId),
         startDate,
       })
       toast.success('Affectation créée avec succès.')
       setAssetId('')
       setDepartmentId('')
-      setUserId('')
-      setCustomUserId('')
+      setEmployeeId('')
+      setCustomEmployeeId('')
       setStartDate(new Date().toISOString().slice(0, 10))
       setAssignmentDrawerOpen(false)
       load()
@@ -180,6 +182,21 @@ export function AssignmentsPage() {
           >
             Transférer / affecter
           </Button>
+          <Button
+            type="button"
+            onClick={async () => {
+              try {
+                await downloadReport('assignments')
+                toast.success('PDF des affectations téléchargé.')
+              } catch {
+                toast.error("Erreur lors de l'impression des affectations.")
+              }
+            }}
+            className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
+            disabled={loading || printLoading}
+          >
+            Imprimer tout
+          </Button>
           <Button onClick={load} className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60" disabled={loading}>
             Actualiser
           </Button>
@@ -197,15 +214,15 @@ export function AssignmentsPage() {
         onClose={() => setAssignmentDrawerOpen(false)}
         assignable={assignable}
         departments={departments}
-        knownUsers={knownUsers}
+        employees={employees}
         assetId={assetId}
         setAssetId={setAssetId}
         departmentId={departmentId}
         setDepartmentId={setDepartmentId}
-        userId={userId}
-        setUserId={setUserId}
-        customUserId={customUserId}
-        setCustomUserId={setCustomUserId}
+        employeeId={employeeId}
+        setEmployeeId={setEmployeeId}
+        customEmployeeId={customEmployeeId}
+        setCustomEmployeeId={setCustomEmployeeId}
         startDate={startDate}
         setStartDate={setStartDate}
         loading={loading}
@@ -283,7 +300,7 @@ export function AssignmentsPage() {
               const query = searchTerm.trim().toLowerCase()
               if (!query) return true
               const asset = items.find((i) => i.id === a.assetId)
-              const userName = formatUserName(a.user).toLowerCase()
+              const userName = formatEmployeeName(a.employee).toLowerCase()
               const searchable = [
                 asset?.inventoryNumber ?? '',
                 getTypeName(asset),
@@ -297,7 +314,7 @@ export function AssignmentsPage() {
             })
             .map((a) => {
               const asset = items.find((i) => i.id === a.assetId)
-              const userName = formatUserName(a.user)
+              const userName = formatEmployeeName(a.employee)
               const avatarName = userName === '—' ? '?' : userName
               return (
                 <tr key={a.id} className="hover:bg-gray-50">
@@ -405,7 +422,7 @@ export function AssignmentsPage() {
               const query = searchTerm.trim().toLowerCase()
               if (!query) return true
               const asset = items.find((i) => i.id === a.assetId)
-              const userName = formatUserName(a.user).toLowerCase()
+              const userName = formatEmployeeName(a.employee).toLowerCase()
               const searchable = [
                 asset?.inventoryNumber ?? '',
                 getTypeName(asset),

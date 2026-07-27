@@ -16,7 +16,7 @@ export type InventoryPdfFilters = {
   materialTypeIds?: number[]
   status?: AssetStatus | ''
   departmentId?: number
-  userId?: string
+  employeeId?: string
   entryDateFrom?: string
   entryDateTo?: string
   warrantyExpired?: boolean
@@ -60,7 +60,7 @@ function buildInventoryQuery(filters: InventoryPdfFilters = {}): string {
   }
   if (filters.status) searchParams.set('status', filters.status)
   if (filters.departmentId != null) searchParams.set('departmentId', String(filters.departmentId))
-  if (filters.userId) searchParams.set('userId', filters.userId)
+  if (filters.employeeId) searchParams.set('employeeId', filters.employeeId)
   if (filters.entryDateFrom) searchParams.set('entryDateFrom', filters.entryDateFrom)
   if (filters.entryDateTo) searchParams.set('entryDateTo', filters.entryDateTo)
   if (filters.warrantyExpired) searchParams.set('warrantyExpired', 'true')

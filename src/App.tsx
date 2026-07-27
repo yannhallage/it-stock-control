@@ -17,6 +17,7 @@ import { DepartmentsPage } from './pages/Departments'
 import { CategoriesPage } from './pages/Categories'
 import { BrandsPage } from './pages/Brands'
 import { LocationsPage } from './pages/Locations'
+import { EmployeesPage } from './pages/Employees'
 import { MaintenancesPage } from './pages/Maintenances'
 import { MovementsPage } from './pages/Movements'
 
@@ -51,6 +52,7 @@ export default function App() {
               <Route path="/fournisseurs" element={<SuppliersPage />} />
               <Route path="/types-materiel" element={<MaterialTypesPage />} />
               <Route path="/departements" element={<DepartmentsPage />} />
+              <Route path="/employes" element={<EmployeesPage />} />
               <Route path="/categories" element={<CategoriesPage />} />
               <Route path="/marques" element={<BrandsPage />} />
               <Route path="/emplacements" element={<LocationsPage />} />
