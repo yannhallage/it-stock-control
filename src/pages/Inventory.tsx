@@ -293,7 +293,7 @@ export function InventoryPage() {
   function resetFilters() {
     setSelectedTypeIds([])
     setDepartmentId('')
-    setUserId('')
+    setEmployeeId('')
     setStatus('')
     setSearch('')
     setWarrantyExpired(false)

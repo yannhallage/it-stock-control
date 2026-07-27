@@ -1145,8 +1145,8 @@ export function AssetsPage() {
   function openAssignmentDrawerForAsset(assetId: number) {
     setAssignAssetId(assetId)
     setAssignDepartmentId('')
-    setAssignUserId('')
-    setAssignCustomUserId('')
+    setAssignEmployeeId('')
+    setAssignCustomEmployeeId('')
     setAssignStartDate(new Date().toISOString().slice(0, 10))
     setAssignmentDrawerOpen(true)
   }
