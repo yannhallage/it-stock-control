@@ -30,6 +30,9 @@ export const ENDPOINTS = {
   brands: {
     base: '/api/brands',
   },
+  employees: {
+    base: '/api/employees',
+  },
   locations: {
     base: '/api/locations',
   },
