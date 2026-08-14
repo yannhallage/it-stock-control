@@ -11,6 +11,15 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@core": ["./src/core/index.ts"],
+      "@core/*": ["./src/core/*", "./src/core/*/index.ts"],
+      "@shared": ["./src/shared/index.ts"],
+      "@shared/*": ["./src/shared/*", "./src/shared/*/index.ts"],
+      "@features": ["./src/features"],
+      "@features/*": ["./src/features/*", "./src/features/*/index.ts"]
+    },
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
