@@ -1,0 +1,97 @@
+# CircleCI : vérifications, build Docker du frontend et publication sur GHCR.
+#
+# Variables à définir dans CircleCI (Project Settings → Environment Variables) :
+#   GHCR_USERNAME  — compte GitHub qui pousse (souvent le tien)
+#   GHCR_TOKEN     — PAT GitHub avec write:packages (et repo si le dépôt est privé)
+#
+# Image publiée : ghcr.io/<owner-github>/it-stock-control:latest et :sha-<7 caractères>
+
+version: 2.1
+
+orbs:
+  node: circleci/node@7
+
+executors:
+  node:
+    docker:
+      - image: cimg/node:20.19
+
+jobs:
+  verify:
+    executor: node
+    steps:
+      - checkout
+
+      - run:
+          name: Lint Dockerfile
+          command: |
+            curl -sL -o hadolint "https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64"
+            chmod +x hadolint
+            sudo mv hadolint /usr/local/bin/hadolint
+            hadolint Dockerfile
+
+      - node/install-packages:
+          pkg-manager: npm
+
+      - run:
+          name: Lint
+          command: npm run lint
+
+  build-and-push:
+    docker:
+      - image: cimg/base:current
+    resource_class: medium
+    environment:
+      REGISTRY: ghcr.io
+      IMAGE_REPO: it-stock-control
+    steps:
+      - checkout
+      - setup_remote_docker
+
+      - run:
+          name: Login to GitHub Container Registry
+          command: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+
+      - run:
+          name: Build and push Docker image
+          no_output_timeout: 20m
+          command: |
+            OWNER="$(echo "${CIRCLE_PROJECT_USERNAME}" | tr '[:upper:]' '[:lower:]')"
+            IMAGE="${REGISTRY}/${OWNER}/${IMAGE_REPO}"
+            TAG="sha-$(echo "${CIRCLE_SHA1}" | cut -c1-7)"
+            echo "IMAGE=${IMAGE}" >> "$BASH_ENV"
+            docker build \
+              --label org.opencontainers.image.revision="${CIRCLE_SHA1}" \
+              --label org.opencontainers.image.source="${CIRCLE_REPOSITORY_URL}" \
+              -t "${IMAGE}:latest" \
+              -t "${IMAGE}:${TAG}" \
+              .
+            docker push "${IMAGE}:latest"
+            docker push "${IMAGE}:${TAG}"
+
+      - run:
+          name: Install Trivy
+          command: |
+            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+              | sh -s -- -b /tmp v0.69.3
+
+      - run:
+          name: Scan image with Trivy
+          command: |
+            export TRIVY_USERNAME="$GHCR_USERNAME"
+            export TRIVY_PASSWORD="$GHCR_TOKEN"
+            /tmp/trivy image --exit-code 0 --format table --vuln-type os,library "${IMAGE}:latest"
+
+workflows:
+  oraclouds:
+    jobs:
+      - verify:
+          filters:
+            branches:
+              only: oraclouds
+      - build-and-push:
+          requires:
+            - verify
+          filters:
+            branches:
+              only: oraclouds
