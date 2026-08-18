@@ -172,8 +172,6 @@ export function MachinesStatsPage() {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError(null)
     fetchMachinesStatsService(granularity)
       .then((data) => {
         if (!cancelled) setPoints(data ?? [])
@@ -191,6 +189,13 @@ export function MachinesStatsPage() {
       cancelled = true
     }
   }, [granularity])
+
+  function selectGranularity(value: MachinesStatsGranularity) {
+    if (value === granularity) return
+    setGranularity(value)
+    setLoading(true)
+    setError(null)
+  }
 
   const summary = useMemo(() => {
     const totals = points.reduce(
@@ -223,7 +228,7 @@ export function MachinesStatsPage() {
               type="button"
               variant={granularity === value ? 'primary' : 'default'}
               className="h-7 min-w-[34px] cursor-pointer rounded px-2 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/60"
-              onClick={() => setGranularity(value)}
+              onClick={() => selectGranularity(value)}
               disabled={loading && granularity === value}
             >
               {GRANULARITY_LABELS[value]}

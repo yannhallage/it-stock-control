@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Calendar from 'react-calendar'
 import 'react-calendar/dist/Calendar.css'
 import { Modal } from './Modal'
@@ -53,12 +53,14 @@ export function CalendarFilterModal({
   onClear,
 }: CalendarFilterModalProps) {
   const [draftValue, setDraftValue] = useState<CalendarFilterValue>(value)
+  const [snapshot, setSnapshot] = useState({ open, value })
 
-  useEffect(() => {
+  if (open !== snapshot.open || value !== snapshot.value) {
+    setSnapshot({ open, value })
     if (open) {
       setDraftValue(value)
     }
-  }, [open, value])
+  }
 
   return (
     <Modal
