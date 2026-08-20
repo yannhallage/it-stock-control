@@ -4,7 +4,8 @@ function windowApiBaseUrl(): string | undefined {
 }
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || windowApiBaseUrl() || 'https://assets-srv.oraclouds.com'
+  // import.meta.env.VITE_API_BASE_URL || windowApiBaseUrl() || 'https://assets-srv.oraclouds.com'
+  'https://assets-srv.oraclouds.com'
 
 export const ENDPOINTS = {
   auth: {
