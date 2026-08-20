@@ -1,14 +1,23 @@
-# CircleCI : vérifications, build Docker du frontend et publication sur Harbor.
+# CircleCI : vérifications, build Docker du frontend, publication Harbor, deploy SSH.
 #
 # Variables à définir dans CircleCI (Project Settings → Environment Variables) :
 #   HARBOR_REGISTRY   — hôte Harbor, sans https:// (ex. harbor.example.com)
 #   HARBOR_PROJECT    — projet Harbor (ex. library)
 #   HARBOR_USERNAME   — utilisateur ou robot Harbor
 #   HARBOR_PASSWORD   — mot de passe ou token robot Harbor
+#   DEPLOY_HOST        — IP Tailscale ou DNS du serveur
+#   DEPLOY_USER        — utilisateur SSH (ex. deploy)
+#   DEPLOY_PATH        — dossier du docker-compose.yml (ex. /opt/it-stock-control)
+#   TAILSCALE_AUTHKEY  — clé reusable/ephemeral (https://login.tailscale.com/admin/settings/keys)
 #   # DOCKER_USERNAME — identifiant Docker Hub (désactivé pour le moment)
 #   # DOCKER_PASSWORD — mot de passe ou Access Token Docker Hub (désactivé pour le moment)
 #   # GHCR_USERNAME   — compte GitHub qui pousse (désactivé pour le moment)
 #   # GHCR_TOKEN      — PAT GitHub avec write:packages (désactivé pour le moment)
+#
+# SSH : Project Settings → SSH Keys → Additional SSH Keys
+#   (clé privée dont la publique est dans authorized_keys de DEPLOY_USER)
+# Le serveur doit déjà être authentifié sur Harbor (docker login) et
+# DEPLOY_USER doit pouvoir lancer docker sans sudo.
 #
 # Images :
 #   <HARBOR_REGISTRY>/<HARBOR_PROJECT>/assets-managment-control:latest et :sha-<7 caractères>
@@ -122,6 +131,121 @@ jobs:
             export TRIVY_PASSWORD="$HARBOR_PASSWORD"
             /tmp/trivy image --exit-code 0 --format table --vuln-type os,library "${HARBOR_IMAGE}:latest"
 
+  deploy:
+    machine:
+      image: ubuntu-2404:current
+    environment:
+      IMAGE_REPO: assets-managment-control
+    steps:
+      - add_ssh_keys
+
+      - run:
+          name: Check deploy settings
+          command: |
+            HOST="$(printf '%s' "${DEPLOY_HOST}" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+            USER="$(printf '%s' "${DEPLOY_USER}" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+            PATH_DIR="$(printf '%s' "${DEPLOY_PATH}" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+            if [ -z "${HOST}" ] || [ -z "${USER}" ] || [ -z "${PATH_DIR}" ]; then
+              echo "DEPLOY_HOST, DEPLOY_USER et DEPLOY_PATH doivent être définis."
+              exit 1
+            fi
+            if [ -z "${TAILSCALE_AUTHKEY}" ]; then
+              echo "TAILSCALE_AUTHKEY doit être défini."
+              exit 1
+            fi
+            printf 'export DEPLOY_HOST=%q\n' "${HOST}" >> "$BASH_ENV"
+            printf 'export DEPLOY_USER=%q\n' "${USER}" >> "$BASH_ENV"
+            printf 'export DEPLOY_PATH=%q\n' "${PATH_DIR}" >> "$BASH_ENV"
+            echo "DEPLOY_HOST=${HOST}"
+
+      - run:
+          name: Install Tailscale
+          command: curl -fsSL https://tailscale.com/install.sh | sh
+
+      - run:
+          name: Connect to Tailscale
+          command: |
+            sudo tailscale up \
+              --authkey="${TAILSCALE_AUTHKEY}" \
+              --hostname="circleci-deploy-${CIRCLE_BUILD_NUM}" \
+              --accept-routes \
+              --accept-dns
+            for i in $(seq 1 30); do
+              if sudo tailscale status >/dev/null 2>&1; then
+                sudo tailscale status
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "Tailscale n'est pas prêt."
+            sudo tailscale status || true
+            exit 1
+
+      - run:
+          name: Normalize Harbor settings
+          command: |
+            REGISTRY="$(printf '%s' "${HARBOR_REGISTRY}" | tr -d '\r' | sed -E 's#^https?://##; s#/+$##')"
+            PROJECT="$(printf '%s' "${HARBOR_PROJECT}" | tr -d '\r' | sed -E 's#^/+##; s#/+$##')"
+            REGISTRY="$(echo "${REGISTRY}" | tr '[:upper:]' '[:lower:]')"
+            PROJECT="$(echo "${PROJECT}" | tr '[:upper:]' '[:lower:]')"
+            if [ -z "${REGISTRY}" ] || [ -z "${PROJECT}" ]; then
+              echo "HARBOR_REGISTRY et HARBOR_PROJECT doivent être définis."
+              exit 1
+            fi
+            printf 'export HARBOR_REGISTRY=%q\n' "${REGISTRY}" >> "$BASH_ENV"
+            printf 'export HARBOR_PROJECT=%q\n' "${PROJECT}" >> "$BASH_ENV"
+
+      - run:
+          name: Trust server host key
+          command: |
+            mkdir -p ~/.ssh
+            chmod 700 ~/.ssh
+            echo "Attente de ${DEPLOY_HOST} via Tailscale..."
+            REACHABLE=0
+            for i in $(seq 1 30); do
+              if sudo tailscale ping --c 1 --timeout=5s --until-direct=false "${DEPLOY_HOST}"; then
+                REACHABLE=1
+                break
+              fi
+              echo "ping ${i}/30 échoué, nouvelle tentative..."
+              sleep 2
+            done
+            if [ "${REACHABLE}" -ne 1 ]; then
+              echo "Impossible de joindre ${DEPLOY_HOST} via Tailscale."
+              echo "Vérifie DEPLOY_HOST (IP 100.x ou nom MagicDNS) et les ACL Tailscale."
+              sudo tailscale status || true
+              exit 1
+            fi
+            KEYS=""
+            for i in $(seq 1 10); do
+              KEYS="$(ssh-keyscan -T 10 -t rsa,ecdsa,ed25519 "${DEPLOY_HOST}" 2>/tmp/ssh-keyscan.err || true)"
+              if [ -n "${KEYS}" ]; then
+                printf '%s\n' "${KEYS}" >> ~/.ssh/known_hosts
+                echo "Clé SSH du serveur enregistrée."
+                exit 0
+              fi
+              echo "ssh-keyscan ${i}/10 sans clé :"
+              cat /tmp/ssh-keyscan.err || true
+              sleep 2
+            done
+            echo "ssh-keyscan n'a pas obtenu la clé de ${DEPLOY_HOST}:22"
+            sudo tailscale status || true
+            exit 1
+
+      - run:
+          name: Pull and recreate frontend
+          command: |
+            TAG="sha-$(echo "${CIRCLE_SHA1}" | cut -c1-7)"
+            IMAGE="${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${IMAGE_REPO}:${TAG}"
+            echo "Deploy ${IMAGE} on ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}"
+            ssh -o StrictHostKeyChecking=yes "${DEPLOY_USER}@${DEPLOY_HOST}" \
+              "cd '${DEPLOY_PATH}' && CONTROL_IMAGE='${IMAGE}' docker compose pull control && CONTROL_IMAGE='${IMAGE}' docker compose up -d --no-deps control"
+
+      - run:
+          name: Disconnect Tailscale
+          when: always
+          command: sudo tailscale logout || true
+
 workflows:
   oraclouds:
     jobs:
@@ -132,6 +256,12 @@ workflows:
       - build-and-push:
           requires:
             - verify
+          filters:
+            branches:
+              only: oraclouds
+      - deploy:
+          requires:
+            - build-and-push
           filters:
             branches:
               only: oraclouds
