@@ -1,7 +1,7 @@
-function windowApiBaseUrl(): string | undefined {
-  if (typeof window === 'undefined') return undefined
-  return (window as Window & { __API_BASE_URL__?: string }).__API_BASE_URL__
-}
+// function windowApiBaseUrl(): string | undefined {
+//   if (typeof window === 'undefined') return undefined
+//   return (window as Window & { __API_BASE_URL__?: string }).__API_BASE_URL__
+// }
 
 const API_BASE_URL =
   // import.meta.env.VITE_API_BASE_URL || windowApiBaseUrl() || 'https://assets-srv.oraclouds.com'
