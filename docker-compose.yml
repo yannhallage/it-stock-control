@@ -1,0 +1,20 @@
+# Frontend (Nginx)
+# Démarrage : docker compose up --build
+# UI : http://localhost:8080
+# L'API doit déjà tourner (ex. it-stock-api) sur http://localhost:3000
+#
+# Image Harbor (optionnel) :
+#   CONTROL_IMAGE=<registry>/<projet>/assets-managment-control:latest
+#   docker compose pull && docker compose up -d
+
+services:
+  control:
+    image: ${CONTROL_IMAGE:-assets-managment-control:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000}
+    restart: unless-stopped
+    ports:
+      - "8080:80"

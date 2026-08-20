@@ -1,13 +1,18 @@
-# CircleCI : vérifications, build Docker du frontend et publication sur Docker Hub.
+# CircleCI : vérifications, build Docker du frontend et publication sur Harbor.
 #
 # Variables à définir dans CircleCI (Project Settings → Environment Variables) :
-#   DOCKER_USERNAME   — identifiant Docker Hub
-#   DOCKER_PASSWORD   — mot de passe ou Access Token Docker Hub
+#   HARBOR_REGISTRY   — hôte Harbor, sans https:// (ex. harbor.example.com)
+#   HARBOR_PROJECT    — projet Harbor (ex. library)
+#   HARBOR_USERNAME   — utilisateur ou robot Harbor
+#   HARBOR_PASSWORD   — mot de passe ou token robot Harbor
+#   # DOCKER_USERNAME — identifiant Docker Hub (désactivé pour le moment)
+#   # DOCKER_PASSWORD — mot de passe ou Access Token Docker Hub (désactivé pour le moment)
 #   # GHCR_USERNAME   — compte GitHub qui pousse (désactivé pour le moment)
 #   # GHCR_TOKEN      — PAT GitHub avec write:packages (désactivé pour le moment)
 #
 # Images :
-#   <DOCKER_USERNAME>/assets-managment-control:latest et :sha-<7 caractères>
+#   <HARBOR_REGISTRY>/<HARBOR_PROJECT>/assets-managment-control:latest et :sha-<7 caractères>
+#   # <DOCKER_USERNAME>/assets-managment-control:latest et :sha-<7 caractères>
 #   # ghcr.io/<owner-github>/assets-managment-control:latest et :sha-<7 caractères>
 
 version: 2.1
@@ -56,9 +61,29 @@ jobs:
       #     name: Login to GitHub Container Registry
       #     command: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
 
+      # - run:
+      #     name: Login to Docker Hub
+      #     command: echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
       - run:
-          name: Login to Docker Hub
-          command: echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+          name: Normalize Harbor settings
+          command: |
+            REGISTRY="$(printf '%s' "${HARBOR_REGISTRY}" | tr -d '\r' | sed -E 's#^https?://##; s#/+$##')"
+            PROJECT="$(printf '%s' "${HARBOR_PROJECT}" | tr -d '\r' | sed -E 's#^/+##; s#/+$##')"
+            REGISTRY="$(echo "${REGISTRY}" | tr '[:upper:]' '[:lower:]')"
+            PROJECT="$(echo "${PROJECT}" | tr '[:upper:]' '[:lower:]')"
+            if [ -z "${REGISTRY}" ] || [ -z "${PROJECT}" ]; then
+              echo "HARBOR_REGISTRY et HARBOR_PROJECT doivent être définis."
+              echo "HARBOR_REGISTRY = hôte seul, sans https:// (ex. harbor.example.com)"
+              echo "HARBOR_PROJECT  = nom du projet Harbor (ex. library)"
+              exit 1
+            fi
+            printf 'export HARBOR_REGISTRY=%q\n' "${REGISTRY}" >> "$BASH_ENV"
+            printf 'export HARBOR_PROJECT=%q\n' "${PROJECT}" >> "$BASH_ENV"
+
+      - run:
+          name: Login to Harbor
+          command: echo "$HARBOR_PASSWORD" | docker login "$HARBOR_REGISTRY" -u "$HARBOR_USERNAME" --password-stdin
 
       - run:
           name: Build and push Docker image
@@ -67,18 +92,22 @@ jobs:
             # OWNER="$(echo "${CIRCLE_PROJECT_USERNAME}" | tr '[:upper:]' '[:lower:]')"
             TAG="sha-$(echo "${CIRCLE_SHA1}" | cut -c1-7)"
             # GHCR_IMAGE="${GHCR_REGISTRY}/${OWNER}/${IMAGE_REPO}"
-            HUB_IMAGE="${DOCKER_USERNAME}/${IMAGE_REPO}"
-            echo "HUB_IMAGE=${HUB_IMAGE}" >> "$BASH_ENV"
+            # HUB_IMAGE="${DOCKER_USERNAME}/${IMAGE_REPO}"
+            HARBOR_IMAGE="${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${IMAGE_REPO}"
+            # echo "HUB_IMAGE=${HUB_IMAGE}" >> "$BASH_ENV"
+            echo "HARBOR_IMAGE=${HARBOR_IMAGE}" >> "$BASH_ENV"
             docker build \
               --label org.opencontainers.image.revision="${CIRCLE_SHA1}" \
               --label org.opencontainers.image.source="${CIRCLE_REPOSITORY_URL}" \
-              -t "${HUB_IMAGE}:latest" \
-              -t "${HUB_IMAGE}:${TAG}" \
+              -t "${HARBOR_IMAGE}:latest" \
+              -t "${HARBOR_IMAGE}:${TAG}" \
               .
             # docker push "${GHCR_IMAGE}:latest"
             # docker push "${GHCR_IMAGE}:${TAG}"
-            docker push "${HUB_IMAGE}:latest"
-            docker push "${HUB_IMAGE}:${TAG}"
+            # docker push "${HUB_IMAGE}:latest"
+            # docker push "${HUB_IMAGE}:${TAG}"
+            docker push "${HARBOR_IMAGE}:latest"
+            docker push "${HARBOR_IMAGE}:${TAG}"
 
       - run:
           name: Install Trivy
@@ -89,9 +118,9 @@ jobs:
       - run:
           name: Scan image with Trivy
           command: |
-            export TRIVY_USERNAME="$DOCKER_USERNAME"
-            export TRIVY_PASSWORD="$DOCKER_PASSWORD"
-            /tmp/trivy image --exit-code 0 --format table --vuln-type os,library "${HUB_IMAGE}:latest"
+            export TRIVY_USERNAME="$HARBOR_USERNAME"
+            export TRIVY_PASSWORD="$HARBOR_PASSWORD"
+            /tmp/trivy image --exit-code 0 --format table --vuln-type os,library "${HARBOR_IMAGE}:latest"
 
 workflows:
   oraclouds:

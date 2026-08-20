@@ -13,6 +13,10 @@ COPY package*.json ./
 # Deterministic install for CI/CD
 RUN npm ci
 
+# URL de l'API vue par le navigateur (build-time Vite)
+ARG VITE_API_BASE_URL=http://localhost:3000
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+
 # Copy source and build
 COPY . .
 RUN npm run build
